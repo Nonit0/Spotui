@@ -674,14 +674,12 @@ fun PlayerInfo(
                     ) { onArtistClick() } else Modifier,
                 )
                 if (source.isNotBlank()) {
-                    // Source badge: green = real Spotify; other colors = not Spotify
-                    // (Lossless via SpotiFLAC's Tidal/Qobuz/Amazon mirrors, or YouTube).
-                    val badgeColor = when {
-                        source == "Spotify" -> Color(0xFF1ED760)
-                        source.startsWith("Lossless") -> Color(0xFFFFC862)
-                        source == "Downloaded" -> Color(0xFF9C9C9C)
-                        else -> Color(0xFFFF6B6B)
-                    }
+                    // One rule app-wide: green = lossless (as on the FLAC badges in Local
+                    // files), grey = everything else, whatever the source. Source-based
+                    // colours made a downloaded or local FLAC show up red.
+                    val lossless = source.startsWith("Lossless") || listOf("FLAC", "WAV", "ALAC", "AIFF", "APE")
+                        .any { quality.uppercase().contains(it) }
+                    val badgeColor = if (lossless || source == "Spotify") Color(0xFF1ED760) else Color(0xFF9C9C9C)
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(top = 3.dp),

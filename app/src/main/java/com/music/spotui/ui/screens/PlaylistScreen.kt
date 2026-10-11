@@ -365,6 +365,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String, playlistNam
                     displaySongs.map { s -> seen.merge(s.id, 1, Int::plus).let { n -> if (n == 1) "${s.id}" else "${s.id}#$n" } }
                 }
                 itemsIndexed(displaySongs, key = { index, _ -> rowKeys[index] }) { index, song ->
+                    com.music.spotui.ui.components.SwipeToQueue(song) {
                     val currentColor = if (song.id == playlistViewModel.currentSongId.value)
                         Color(AppPalette.toArgb()) else Color.White
 
@@ -418,6 +419,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String, playlistNam
                                 maxLines = 1
                             )
                         }
+                    }
                     }
                 }
 

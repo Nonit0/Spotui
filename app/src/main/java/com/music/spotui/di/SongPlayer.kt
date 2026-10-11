@@ -19,6 +19,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.text.Normalizer
 import kotlin.math.abs
@@ -68,6 +69,9 @@ object SongPlayer {
     // fly by DeezerDataSource). Quality follows the account tier: free → MP3 128,
     // Premium → MP3 320 / FLAC. Falls back to SpotiFLAC/YouTube on any miss.
     @Volatile var deezerEnabled = true
+
+    // Soulseek P2P as the last lossless fallback (see SoulseekSource).
+    @Volatile var soulseekEnabled = true
 
     // Which engine is feeding the CURRENT track, for the on-screen source badge.
     // "Lossless" (SpotiFLAC: Tidal/Qobuz/Amazon) is NOT Spotify — surfaced so the
@@ -313,6 +317,8 @@ object SongPlayer {
             player!!.playWhenReady = true
         }
         startPositionWatch()
+        // Quick-start songs trigger it after their own upgrade instead.
+        if (!wantsQuickStart(song, appContext)) soulseekLookahead(appContext)
     }
 
     private fun streamFailed(song: String, appContext: Context) {
@@ -335,6 +341,44 @@ object SongPlayer {
             com.music.spotui.data.preferences.downloadedPathForQuery(ctx, song) == null &&
             alternativeStreamForPlayback(song, ctx) == null &&
             (trackIdRegistry[song] ?: spotifyTrackIdForPlayback(song)) != null
+
+    private fun soulseekOn(ctx: Context): Boolean =
+        soulseekEnabled && com.music.spotui.data.preferences.isSoulseekEnabled(ctx)
+
+    private fun soulseekKey(song: String): String =
+        trackIdRegistry[song] ?: spotifyTrackIdForPlayback(song) ?: song.hashCode().toUInt().toString()
+
+    // One look-ahead at a time; the client moves one file at a time anyway.
+    private val lookaheadLock = kotlinx.coroutines.sync.Mutex()
+
+    /**
+     * Fetch the next queued track's FLAC from Soulseek while this one plays, so it
+     * starts lossless instead of upgrading a minute in. Only the next track: a
+     * skipped song's file is wasted data.
+     */
+    private fun soulseekLookahead(ctx: Context) {
+        if (!soulseekOn(ctx) || !losslessStreaming || !youtubeEnabled) return
+        if (!com.music.spotui.data.preferences.currentStreamingQuality(ctx).lossless) return
+        val state = boundState ?: return
+        if (lookaheadLock.isLocked) return
+        scope.launch {
+            lookaheadLock.withLock {
+                val next = withContext(Dispatchers.Main) {
+                    val q = state.queue.value
+                    val cur = q.indexOfFirst { it.id == state.songId.value }
+                    q.getOrNull(cur + 1)?.takeIf { cur >= 0 }
+                } ?: return@withLock
+                val query = next.url
+                if (com.music.spotui.data.preferences.downloadedPathForQuery(ctx, query) != null) return@withLock
+                val key = soulseekKey(query)
+                if (com.music.spotui.soulseek.SoulseekSource.cached(ctx, key) != null) return@withLock
+                val info = losslessTrackInfo(query)
+                if (info.title.isBlank() || info.artist.isBlank()) return@withLock
+                Log.d(TAG, "look-ahead: fetching ${info.title} from Soulseek")
+                runCatching { com.music.spotui.soulseek.SoulseekSource.flac(ctx, key, info.title, info.artist, info.durationSec) }
+            }
+        }
+    }
 
     private fun isLosslessSource(song: String): Boolean =
         sourceCache[song]?.startsWith("Lossless") == true || qualityCache[song] == "FLAC"
@@ -364,6 +408,8 @@ object SongPlayer {
             startStream(song, fast.streamUrl, ctx)
         }
         val better = best.await()
+        // This song's lookup is done; use the time left for the next one.
+        soulseekLookahead(ctx)
         if (currentRequest != song) return@coroutineScope
         when {
             better != null && isLosslessSource(song) && fast != null -> swapToLossless(song, better)
@@ -655,6 +701,16 @@ object SongPlayer {
         // Quality for the current network (Wi-Fi vs cellular), from Settings.
         val quality = com.music.spotui.data.preferences.currentStreamingQuality(appContext)
 
+        // A Soulseek FLAC fetched earlier (look-ahead or a past play) starts right away.
+        if (soulseekOn(appContext) && quality.lossless) {
+            com.music.spotui.soulseek.SoulseekSource.cached(appContext, soulseekKey(song))?.let { file ->
+                if (forPlayback) { currentSource = "Lossless • Soulseek"; currentQuality = "FLAC" }
+                sourceCache[song] = "Lossless • Soulseek"
+                qualityCache[song] = "FLAC"
+                return android.net.Uri.fromFile(file).toString()
+            }
+        }
+
         // Deezer — preferred, but when Lossless is selected a FREE Deezer account only
         // yields MP3. In that case we HOLD the MP3 as a fallback and try the real FLAC
         // sources first, so lossless isn't silently pre-empted by Deezer MP3.
@@ -707,6 +763,25 @@ object SongPlayer {
                     return r.track.url
                 } else {
                     Log.d(TAG, "lossless miss ($r) for: $song")
+                }
+            }
+        }
+
+        // Soulseek (P2P) when the lossless servers have nothing. A peer can take a
+        // minute, so only for the background upgrade, while another stream plays.
+        if (soulseekOn(appContext) && !allowYouTube && quality.lossless) {
+            val info = losslessTrackInfo(song)
+            val key = soulseekKey(song)
+            if (info.title.isNotBlank() && info.artist.isNotBlank()) {
+                val file = runCatching {
+                    com.music.spotui.soulseek.SoulseekSource.flac(appContext, key, info.title, info.artist, info.durationSec)
+                }.getOrNull()
+                if (file != null) {
+                    val url = android.net.Uri.fromFile(file).toString()
+                    streamCache[song] = url
+                    sourceCache[song] = "Lossless • Soulseek"
+                    qualityCache[song] = "FLAC"
+                    return url
                 }
             }
         }
@@ -1284,8 +1359,17 @@ object SongPlayer {
             retriedRequest = null
             val p = player ?: return
             if (p.currentMediaItemIndex > 0) p.removeMediaItems(0, p.currentMediaItemIndex)
-            appCtx?.let { ctx -> scope.launch { resolveStreamUrl(query, ctx, forPlayback = true) } } // badge
+            appCtx?.let { ctx ->
+                scope.launch { resolveStreamUrl(query, ctx, forPlayback = true) } // badge
+                soulseekLookahead(ctx)
+            }
             onPreloadedTrackStarted?.invoke(query)
+        }
+
+        // Play/pause from the notification, headset or car goes straight to the player;
+        // mirror it so the in-app button doesn't keep showing the old state.
+        override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+            if (!isCrossfading) boundState?.updatePlayingState(playWhenReady)
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {

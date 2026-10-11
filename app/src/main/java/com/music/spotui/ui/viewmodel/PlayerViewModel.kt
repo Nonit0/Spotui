@@ -48,11 +48,12 @@ class PlayerViewModel @Inject constructor(private val currentSongState: CurrentS
         currentSongState.updateQueue(q)
     }
 
-    /** Append a track to the end of the queue ("Add to queue"). */
-    fun addToQueue(song: SongsModel) {
+    /** Append a track to the end of the queue ("Add to queue"). False if already queued. */
+    fun addToQueue(song: SongsModel): Boolean {
         val q = currentSongState.queue.value
-        if (q.any { it.id == song.id }) return
+        if (q.any { it.id == song.id }) return false
         currentSongState.updateQueue(q + song)
+        return true
     }
 
     /** Reorder the queue, moving the track at [from] to [to] (both absolute indices). */

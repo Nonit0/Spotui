@@ -244,9 +244,11 @@ fun SumUpSearchScreen(
         } else {
             items(mixed.size) { i ->
                 when (val row = mixed[i]) {
-                    is SearchRow.Song -> SearchSongRow(row.song, searchedList, searchViewModel, onPlayed = {
-                        recordRecent(row.song.toRecentItem())
-                    }, onLongClick = { menuSong = row.song })
+                    is SearchRow.Song -> com.music.spotui.ui.components.SwipeToQueue(row.song) {
+                        SearchSongRow(row.song, searchedList, searchViewModel, onPlayed = {
+                            recordRecent(row.song.toRecentItem())
+                        }, onLongClick = { menuSong = row.song })
+                    }
                     is SearchRow.Artist -> SearchArtistRow(row.artist) {
                         recordRecent(com.music.spotui.data.preferences.RecentItem(
                             type = "artist",

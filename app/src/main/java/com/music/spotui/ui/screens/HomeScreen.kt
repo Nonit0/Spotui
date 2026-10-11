@@ -1,5 +1,8 @@
 package com.music.spotui.ui.screens
 
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.launch
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
@@ -216,38 +219,80 @@ private fun HomeHeaderRow(navController: NavController) {
                 )
             }
         }
-        // Filter pills — Podcasts/Audiobooks jump to Search (where they're indexed).
-        val filters = listOf("All", "Music", "Podcasts", "Audiobooks")
-        var selected by remember { androidx.compose.runtime.mutableStateOf("All") }
-        LazyRow(
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp),
+        // Scrolls sideways if the pills don't fit, like Spotify's.
+        Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .weight(1f)
+                .horizontalScroll(androidx.compose.foundation.rememberScrollState())
+                .padding(start = 12.dp, end = 8.dp),
         ) {
-            items(filters.size) { i ->
-                val label = filters[i]
-                val isSel = label == selected
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(50))
-                        .background(if (isSel) Color(0xFF1ED760) else Color(0xFF2A2A2A))
-                        .clickable {
-                            selected = label
-                            if (label == "Podcasts" || label == "Audiobooks") {
-                                navController.navigate(Routes.Search.route)
-                            }
-                        }
-                        .padding(horizontal = 14.dp, vertical = 6.dp),
-                ) {
-                    Text(
-                        text = label,
-                        color = if (isSel) Color.Black else Color.White,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                    )
+            // Home is the music view, so "Music" is the selected (green) pill.
+            HomePill("Music", selected = true) {}
+            HomePill("Local files") { navController.navigate(Routes.LocalFiles.route) }
+            HomePill("History") { navController.navigate(Routes.History.route) }
+        }
+        Box(Modifier.padding(end = 16.dp)) { UpdateButton() }
+    }
+}
+
+@Composable
+private fun HomePill(label: String, selected: Boolean = false, onClick: () -> Unit) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(if (selected) Color(0xFF1ED760) else Color(0xFF2A2A2A))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        Text(text = label, color = if (selected) Color.Black else Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+/** "Spotui x.y" pill: checks GitHub every few hours and turns into an update link. */
+@Composable
+private fun UpdateButton() {
+    val context = LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var update by remember { androidx.compose.runtime.mutableStateOf<com.music.spotui.data.api.UpdateChecker.Update?>(null) }
+    val current = com.music.spotui.BuildConfig.VERSION_NAME
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        update = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            com.music.spotui.data.api.UpdateChecker.check(context, current)
+        }
+    }
+    fun openRelease(url: String) = runCatching {
+        context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)))
+    }
+    val found = update
+    Box(
+        contentAlignment = Alignment.CenterStart,
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(if (found != null) Color(0xFF1ED760) else Color(0xFF2A2A2A))
+            .clickable {
+                if (found != null) openRelease(found.url) else scope.launch {
+                    val fresh = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        com.music.spotui.data.api.UpdateChecker.check(context, current, force = true)
+                    }
+                    update = fresh
+                    android.widget.Toast.makeText(
+                        context,
+                        if (fresh != null) "Update ${fresh.version} is available" else "You're up to date ($current)",
+                        android.widget.Toast.LENGTH_SHORT,
+                    ).show()
                 }
             }
-        }
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+    ) {
+        Text(
+            text = if (found != null) "Update ${found.version}" else "Spotui $current",
+            color = if (found != null) Color.Black else Color.White,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+        )
     }
 }
 

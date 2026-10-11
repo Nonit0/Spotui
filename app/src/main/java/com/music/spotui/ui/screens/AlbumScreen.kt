@@ -453,6 +453,7 @@ fun SumUpAlbumScreen(
 
             if(albumSongs.isNotEmpty()){
                 repeat(albumSongs.size) {song ->
+                    com.music.spotui.ui.components.SwipeToQueue(albumSongs[song]) {
 
 
                     var isLiked by remember {
@@ -553,6 +554,7 @@ fun SumUpAlbumScreen(
                             },
                             contentDescription = ""
                         )
+                    }
                     }
                 }
             }

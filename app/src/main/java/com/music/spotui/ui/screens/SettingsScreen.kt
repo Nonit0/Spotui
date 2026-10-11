@@ -368,6 +368,20 @@ fun SettingsScreen(navController: NavController) {
             }
 
             Spacer(Modifier.height(12.dp))
+            SectionTitle("Soulseek (experimental)")
+            var soulseekOn by remember { mutableStateOf(com.music.spotui.data.preferences.isSoulseekEnabled(context)) }
+            SettingsSwitchRow(
+                title = "Soulseek lossless fallback",
+                subtitle = "When the FLAC servers miss, fetch FLACs from Soulseek (peer-to-peer). Uses data and shows your IP to peers.",
+                checked = soulseekOn,
+            ) {
+                soulseekOn = it
+                com.music.spotui.data.preferences.setSoulseekEnabled(context, it)
+                // Off: leave the network now and close the listening port.
+                if (!it) Thread { com.music.spotui.soulseek.SoulseekClient.disconnect() }.start()
+            }
+
+            Spacer(Modifier.height(12.dp))
             SectionTitle("Account")
             Text(
                 text = "Log out",
