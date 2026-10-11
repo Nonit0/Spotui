@@ -246,16 +246,8 @@ fun PlayerScreen(navController: NavController) {
 
 
 
-    if((songProgressText != "0:00") && (songDurationText == songProgressText)){
-        if(repeat){
-            SongPlayer.seekTo(0)
-        }
-        else{
-            // Debounced: this block re-runs every recomposition until the next
-            // track's stream actually starts, so it must not skip repeatedly.
-            playerViewModel.autoAdvance(queueSongs, context)
-        }
-    }
+    // End of track (repeat / next / radio) is handled by PlaybackService, so it also
+    // happens with the screen off.
 
     Log.d("queueSongaa", songs.toString())
     Log.d("queueSongc", playerViewModel.currentSongAlbum.value.toString())
@@ -267,6 +259,10 @@ fun PlayerScreen(navController: NavController) {
 
                     songProgress = SongPlayer.getCurrentPosition().toFloat()
                     songProgressText = playerViewModel.formatDuration(songProgress.toLong())
+                    // FLAC (and any slow start) learns its length after the screen first
+                    // drew; refresh it here or it stays 0:00 until the screen reopens.
+                    val dur = SongPlayer.getDuration()
+                    songDurationText = if (dur < 0) "0:00" else playerViewModel.formatDuration(dur)
 
 //                if (songProgress >= songDuration ) {
 //                    if (playerViewModel.repeatState.value){
@@ -1064,7 +1060,7 @@ fun PlayerOptionsSheet(
     // only carries display strings, and `album` is the *context* name (playlist…).
     val currentSong = playerViewModel.queue.value.firstOrNull { it.id == songId }
     var downloaded by remember(songId) { mutableStateOf(com.music.spotui.data.preferences.isDownloaded(context, songId.toString())) }
-    var downloadingNow by remember(songId) { mutableStateOf(currentSong != null && SongPlayer.isDownloading(currentSong.url)) }
+    var downloadingNow by remember(songId) { mutableStateOf(currentSong != null && com.music.spotui.di.Downloads.isDownloading(currentSong.url)) }
     val alternativeKey = currentSong?.let { alternativeStreamKey(it) }.orEmpty()
     var currentAlternative by remember(songId, alternativeKey) {
         mutableStateOf(alternativeKey.takeIf { it.isNotBlank() }?.let { getAlternativeStream(context, it) })
@@ -1190,7 +1186,7 @@ fun PlayerOptionsSheet(
                         downloaded = false
                     } else {
                         downloadingNow = true
-                        SongPlayer.downloadSong(song, context) { ok ->
+                        com.music.spotui.di.Downloads.downloadSong(song, context) { ok ->
                             downloadingNow = false
                             downloaded = ok
                         }
@@ -1414,25 +1410,44 @@ fun PlayerMenuRow(
  * Plays a Spotify Canvas clip: a short, muted, looping video filling the
  * now-playing background. Uses a dedicated ExoPlayer (separate from the audio
  * engine) released when the composable leaves. Falls back to nothing if the URL fails.
+ *
+ * Loops are served from the media cache: without it every loop re-downloaded the
+ * clip, and since ExoPlayer ignores the activity lifecycle it kept doing so in the
+ * background (#87, gigabytes per hour). It also pauses while the app is not visible.
  */
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
 private fun CanvasVideo(url: String, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val exo = remember(url) {
-        androidx.media3.exoplayer.ExoPlayer.Builder(context).build().apply {
-            setMediaItem(androidx.media3.common.MediaItem.fromUri(url))
-            repeatMode = androidx.media3.common.Player.REPEAT_MODE_ALL
-            volume = 0f
-            playWhenReady = true
-            prepare()
-        }
+        val cached = androidx.media3.datasource.cache.CacheDataSource.Factory()
+            .setCache(SongPlayer.mediaCache(context.applicationContext))
+            .setUpstreamDataSourceFactory(androidx.media3.datasource.DefaultHttpDataSource.Factory())
+        androidx.media3.exoplayer.ExoPlayer.Builder(context)
+            .setMediaSourceFactory(androidx.media3.exoplayer.source.DefaultMediaSourceFactory(cached))
+            .build().apply {
+                setMediaItem(androidx.media3.common.MediaItem.fromUri(url))
+                repeatMode = androidx.media3.common.Player.REPEAT_MODE_ALL
+                volume = 0f
+                playWhenReady = true
+                prepare()
+            }
     }
-    androidx.compose.runtime.DisposableEffect(url) {
-        onDispose { exo.release() }
+    val lifecycle = androidx.compose.ui.platform.LocalLifecycleOwner.current.lifecycle
+    androidx.compose.runtime.DisposableEffect(url, lifecycle) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, _ ->
+            exo.playWhenReady = lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)
+        }
+        lifecycle.addObserver(observer)
+        onDispose {
+            lifecycle.removeObserver(observer)
+            exo.release()
+        }
     }
     androidx.compose.ui.viewinterop.AndroidView(
         modifier = modifier,
+        // factory runs once; a new track's clip gets a new player, so rebind it here.
+        update = { it.player = exo },
         factory = { ctx ->
             androidx.media3.ui.PlayerView(ctx).apply {
                 player = exo
@@ -1447,6 +1462,9 @@ private fun CanvasVideo(url: String, modifier: Modifier = Modifier) {
                 hideController()
                 resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
                 setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                // Until a clip's first frame, show the screen behind, not a black shutter.
+                setShutterBackgroundColor(android.graphics.Color.TRANSPARENT)
+                setKeepContentOnPlayerReset(true)
             }
         },
     )

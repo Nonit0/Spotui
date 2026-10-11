@@ -16,3 +16,7 @@ app/release/
 /.idea/workspace.xml
 /.idea/navEditor.xml
 /.idea/assetWizardSettings.xml
+# Release signing (never commit keys)
+keystore.properties
+*.jks
+*.keystore

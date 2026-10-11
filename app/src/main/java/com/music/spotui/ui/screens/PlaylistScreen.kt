@@ -92,11 +92,6 @@ fun PlaylistScreen(navController: NavController, playlistId: String, playlistNam
             time = "",
         )
 
-    LaunchedEffect(songs) {
-        if (songs.isNotEmpty()) {
-            SongPlayer.prefetchList(songs.map { it.url }, context)
-        }
-    }
 
     var menuSong by remember { mutableStateOf<com.music.spotui.data.entity.SongsModel?>(null) }
     menuSong?.let { sel ->
@@ -258,8 +253,9 @@ fun PlaylistScreen(navController: NavController, playlistId: String, playlistNam
                                 .padding(20.dp, 0.dp)
                         ) {
                             // Download the whole playlist (all tracks) for offline playback.
+                            var askDownloadAll by remember { mutableStateOf(false) }
                             var playlistDownloaded by remember(songs) {
-                                mutableStateOf(songs.isNotEmpty() && SongPlayer.allDownloaded(songs, context))
+                                mutableStateOf(songs.isNotEmpty() && com.music.spotui.di.Downloads.allDownloaded(songs, context))
                             }
                             if (songs.isNotEmpty()) {
                                 Icon(
@@ -272,17 +268,20 @@ fun PlaylistScreen(navController: NavController, playlistId: String, playlistNam
                                             interactionSource = remember { MutableInteractionSource() },
                                             indication = null,
                                         ) {
-                                            if (!playlistDownloaded) {
-                                                SongPlayer.downloadAll(songs, context)
-                                                android.widget.Toast.makeText(
-                                                    context,
-                                                    "Downloading ${songs.size} tracks…",
-                                                    android.widget.Toast.LENGTH_SHORT,
-                                                ).show()
-                                            }
+                                            if (!playlistDownloaded) askDownloadAll = true
                                         },
                                     contentDescription = "Download playlist",
                                 )
+                                if (askDownloadAll) {
+                                    com.music.spotui.ui.components.ConfirmDownloadAllDialog(
+                                        songs.size, onDismiss = { askDownloadAll = false },
+                                    ) {
+                                        com.music.spotui.di.Downloads.downloadAll(songs, context)
+                                        android.widget.Toast.makeText(
+                                            context, "Downloading ${songs.size} tracks…", android.widget.Toast.LENGTH_SHORT,
+                                        ).show()
+                                    }
+                                }
                                 Spacer(modifier = Modifier.width(16.dp))
                                 // Shuffle-play: start the playlist in random order.
                                 Icon(
@@ -359,7 +358,13 @@ fun PlaylistScreen(navController: NavController, playlistId: String, playlistNam
                     }
                 }
 
-                itemsIndexed(displaySongs, key = { _, song -> song.id }) { index, song ->
+                // A playlist can hold the same track twice; duplicate keys crash LazyColumn.
+                // Repeats get "#n" so every other key stays stable while pages load.
+                val rowKeys = run {
+                    val seen = HashMap<Int, Int>()
+                    displaySongs.map { s -> seen.merge(s.id, 1, Int::plus).let { n -> if (n == 1) "${s.id}" else "${s.id}#$n" } }
+                }
+                itemsIndexed(displaySongs, key = { index, _ -> rowKeys[index] }) { index, song ->
                     val currentColor = if (song.id == playlistViewModel.currentSongId.value)
                         Color(AppPalette.toArgb()) else Color.White
 

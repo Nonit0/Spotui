@@ -141,14 +141,6 @@ fun SumUpAlbumScreen(
     // `songs` is already this album's track list (loaded by AlbumViewModel).
     val albumSongs: List<SongsModel> = songs
 
-    // Warm the stream cache for the first few tracks so the first tap plays
-    // (near-)instantly instead of resolving YouTube on the tap.
-    LaunchedEffect(albumSongs) {
-        if (albumSongs.isNotEmpty()) {
-            SongPlayer.prefetchList(albumSongs.map { it.url }, context)
-        }
-    }
-
     val albumByName : Map<String, List<AlbumsModel>> = albums.groupBy { it.name }
     // The album may not be in the cached new-releases list (e.g. opened from
     // search) — fall back to a model built from the album's first track.
@@ -348,8 +340,9 @@ fun SumUpAlbumScreen(
                                 contentDescription = ""
                             )
                             // Download the whole album (all tracks) for offline playback.
+                            var askDownloadAll by remember { mutableStateOf(false) }
                             var albumDownloaded by remember(albumSongs) {
-                                mutableStateOf(SongPlayer.allDownloaded(albumSongs, context))
+                                mutableStateOf(com.music.spotui.di.Downloads.allDownloaded(albumSongs, context))
                             }
                             Icon(
                                 imageVector = if (albumDownloaded)
@@ -361,14 +354,19 @@ fun SumUpAlbumScreen(
                                         interactionSource = remember { MutableInteractionSource() },
                                         indication = null,
                                     ) {
-                                        if (!albumDownloaded && albumSongs.isNotEmpty()) {
-                                            SongPlayer.downloadAll(albumSongs, context)
-                                            snackbarMessage = "Downloading ${albumSongs.size} tracks…"
-                                            snackbarVisible = true
-                                        }
+                                        if (!albumDownloaded && albumSongs.isNotEmpty()) askDownloadAll = true
                                     },
                                 contentDescription = "Download album",
                             )
+                            if (askDownloadAll) {
+                                com.music.spotui.ui.components.ConfirmDownloadAllDialog(
+                                    albumSongs.size, onDismiss = { askDownloadAll = false },
+                                ) {
+                                    com.music.spotui.di.Downloads.downloadAll(albumSongs, context)
+                                    snackbarMessage = "Downloading ${albumSongs.size} tracks…"
+                                    snackbarVisible = true
+                                }
+                            }
                             Spacer(modifier = Modifier.width(16.dp))
                             // Shuffle-play: start the album in random order.
                             Icon(

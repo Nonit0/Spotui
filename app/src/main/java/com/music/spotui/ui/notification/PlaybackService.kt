@@ -30,6 +30,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /**
@@ -93,6 +94,8 @@ class PlaybackService : MediaLibraryService() {
         SongPlayer.onStreamFailed = { _ ->
             advance(forward = true)
         }
+        SongPlayer.onTrackEnded = { onTrackEnded() }
+        SongPlayer.onPreloadedTrackStarted = { query -> onPreloadedTrackStarted(query) }
 
         // As the hidden web player streams, keep the notification in sync and swap
         // the session between the web player (during web playback) and the ExoPlayer.
@@ -140,6 +143,35 @@ class PlaybackService : MediaLibraryService() {
             else -> super.isCommandAvailable(command)
         }
 
+        // ForwardingPlayer hands listeners the base player's commands, so on every
+        // track change the session dropped the next we add above: the notification
+        // kept "previous" (ExoPlayer has it) but lost "next" (#89).
+        private val wrappedListeners = HashMap<Player.Listener, Player.Listener>()
+        private val self = this
+
+        override fun addListener(listener: Player.Listener) {
+            // A Proxy, not Kotlin `by` delegation: Player.Listener's methods are all Java
+            // defaults, which `by` does not forward, so the session saw no events at all.
+            val wrapped = java.lang.reflect.Proxy.newProxyInstance(
+                Player.Listener::class.java.classLoader,
+                arrayOf(Player.Listener::class.java),
+            ) { proxy, method, args ->
+                when (method.name) {
+                    "onAvailableCommandsChanged" -> listener.onAvailableCommandsChanged(self.availableCommands)
+                    "equals" -> proxy === args?.get(0)
+                    "hashCode" -> System.identityHashCode(proxy)
+                    "toString" -> "CommandsFixingListener($listener)"
+                    else -> method.invoke(listener, *(args ?: emptyArray()))
+                }
+            } as Player.Listener
+            wrappedListeners[listener] = wrapped
+            super.addListener(wrapped)
+        }
+
+        override fun removeListener(listener: Player.Listener) {
+            super.removeListener(wrappedListeners.remove(listener) ?: listener)
+        }
+
         override fun hasNextMediaItem() = true
         override fun hasPreviousMediaItem() = true
         override fun seekToNext() = advance(forward = true)
@@ -167,6 +199,53 @@ class PlaybackService : MediaLibraryService() {
             song.id, nextIdx, currentSongState.album.value
         )
         SongPlayer.playSong(song.url, applicationContext)
+    }
+
+    /**
+     * A track played to its end (screen on or off): repeat it, play the next queue
+     * item, or at the end of the queue continue into Spotify radio. With no radio,
+     * stop instead of wrapping around, which replayed the same song on a single.
+     */
+    private fun onTrackEnded() {
+        if (currentSongState.repeat.value) {
+            SongPlayer.seekTo(0)
+            SongPlayer.play()
+            return
+        }
+        val queue = currentSongState.queue.value
+        val cur = queue.indexOfFirst { it.id == currentSongState.songId.value }
+        if (cur in 0 until queue.size - 1) {
+            advance(forward = true)
+            return
+        }
+        serviceScope.launch {
+            val seeds = queue.takeLast(5).mapNotNull { it.spotifyTrackId.ifBlank { null } }.distinct()
+            val known = queue.mapTo(HashSet()) { it.id }
+            val fresh = withContext(Dispatchers.IO) {
+                runCatching { repository.provideRecommendations(seeds) }.getOrDefault(emptyList())
+            }.filter { it.id !in known }
+            if (fresh.isEmpty()) {
+                currentSongState.updatePlayingState(false)
+                return@launch
+            }
+            currentSongState.updateQueue(currentSongState.queue.value + fresh)
+            advance(forward = true)
+        }
+    }
+
+    /** The player moved on to the queued-ahead track by itself: show it as current. */
+    private fun onPreloadedTrackStarted(query: String) {
+        val queue = currentSongState.queue.value
+        val idx = queue.indexOfFirst { it.url == query }
+        if (idx < 0) {
+            // Removed from the queue after it was queued ahead: play the real next one.
+            advance(forward = true)
+            return
+        }
+        val song = queue[idx]
+        currentSongState.updateSongState(
+            song.coverUri, song.title, song.singer, true, song.id, idx, song.album,
+        )
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? = mediaSession
@@ -344,6 +423,8 @@ class PlaybackService : MediaLibraryService() {
         serviceScope.cancel()
         SongPlayer.onPlayerSwapped = null
         SongPlayer.onStreamFailed = null
+        SongPlayer.onTrackEnded = null
+        SongPlayer.onPreloadedTrackStarted = null
         SpotifyWebPlayer.onStateChanged = null
         webPlayer?.release()
         webPlayer = null

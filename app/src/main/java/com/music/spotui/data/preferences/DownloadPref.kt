@@ -45,10 +45,14 @@ private fun parse(json: String): Pair<SongsModel, String>? = runCatching {
     ) to o.optString("filePath")
 }.getOrNull()
 
+// query → file path, rebuilt after any change: downloadedPathForQuery runs on every play.
+@Volatile private var pathByQuery: Map<String, String>? = null
+
 fun addDownload(context: Context, song: SongsModel, filePath: String) {
     context.getSharedPreferences(PREF, Context.MODE_PRIVATE).edit()
         .putString(song.id.toString(), song.toJson(filePath))
         .apply()
+    pathByQuery = null
 }
 
 fun removeDownload(context: Context, songId: String) {
@@ -57,6 +61,7 @@ fun removeDownload(context: Context, songId: String) {
         parse(json)?.second?.let { path -> runCatching { File(path).delete() } }
     }
     prefs.edit().remove(songId).apply()
+    pathByQuery = null
 }
 
 fun isDownloaded(context: Context, songId: String): Boolean =
@@ -69,12 +74,11 @@ fun getDownloadedSongs(context: Context): List<SongsModel> {
 
 /** Local file path for a track query (SongsModel.url), if downloaded and present on disk. */
 fun downloadedPathForQuery(context: Context, query: String): String? {
-    val prefs = context.getSharedPreferences(PREF, Context.MODE_PRIVATE)
-    for (v in prefs.all.values) {
-        val (song, path) = (v as? String)?.let(::parse) ?: continue
-        if (song.url == query && path.isNotBlank() && File(path).exists()) return path
-    }
-    return null
+    val index = pathByQuery ?: getDownloadedEntries(context)
+        .filter { it.second.isNotBlank() }
+        .associate { (song, path) -> song.url to path }
+        .also { pathByQuery = it }
+    return index[query]?.takeIf { File(it).exists() }
 }
 
 /** Every downloaded track paired with its on-disk file path. */
@@ -88,6 +92,7 @@ fun clearAllDownloads(context: Context): Int {
     val entries = getDownloadedEntries(context)
     entries.forEach { (_, path) -> if (path.isNotBlank()) runCatching { File(path).delete() } }
     prefs.edit().clear().apply()
+    pathByQuery = null
     return entries.size
 }
 
@@ -131,17 +136,34 @@ private fun exportFile(context: Context, song: SongsModel, path: String): Boolea
             put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
             put(MediaStore.MediaColumns.MIME_TYPE, mime)
             put(MediaStore.MediaColumns.RELATIVE_PATH, "${Environment.DIRECTORY_MUSIC}/spotui")
+            // Hidden from other apps until the copy finishes.
+            put(MediaStore.MediaColumns.IS_PENDING, 1)
         }
-        val uri = context.contentResolver.insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values)
-            ?: return false
-        context.contentResolver.openOutputStream(uri)?.use { out ->
-            src.inputStream().use { it.copyTo(out) }
-        } ?: return false
+        val resolver = context.contentResolver
+        // Already exported: a second insert would add an "Artist - Title (1)" copy.
+        val exported = resolver.query(
+            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, arrayOf(MediaStore.MediaColumns._ID),
+            "${MediaStore.MediaColumns.DISPLAY_NAME}=? AND ${MediaStore.MediaColumns.RELATIVE_PATH}=?",
+            arrayOf(displayName, "${Environment.DIRECTORY_MUSIC}/spotui/"), null,
+        )?.use { it.count > 0 } == true
+        if (exported) return true
+        val uri = resolver.insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values) ?: return false
+        val copied = runCatching {
+            resolver.openOutputStream(uri)!!.use { out -> src.inputStream().use { it.copyTo(out) } }
+        }.isSuccess
+        if (!copied) {
+            // Never leave a half-written track in the user's music library.
+            resolver.delete(uri, null, null)
+            return false
+        }
+        resolver.update(uri, ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
     } else {
         val dir = File(
             Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC), "spotui",
         ).apply { mkdirs() }
-        src.inputStream().use { input -> File(dir, displayName).outputStream().use { input.copyTo(it) } }
+        val dest = File(dir, displayName)
+        runCatching { src.inputStream().use { input -> dest.outputStream().use { input.copyTo(it) } } }
+            .onFailure { dest.delete(); return false }
     }
     true
 }.getOrDefault(false)

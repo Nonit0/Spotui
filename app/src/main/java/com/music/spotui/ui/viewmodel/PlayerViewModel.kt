@@ -125,19 +125,6 @@ class PlayerViewModel @Inject constructor(private val currentSongState: CurrentS
         }
     }
 
-    // End-of-track autoplay fires from the UI on every recomposition while the
-    // finished track's position still equals its duration (the next stream takes
-    // seconds to resolve), so without a debounce it advances 30+ tracks in a
-    // burst. Allow ONE auto-advance, then hold until the new track takes over.
-    @Volatile private var lastAutoAdvanceMs = 0L
-
-    fun autoAdvance(queueSongs: List<SongsModel>, context: Context) {
-        val now = System.currentTimeMillis()
-        if (now - lastAutoAdvanceMs < 4000) return
-        lastAutoAdvanceMs = now
-        playNextSongs(queueSongs, context)
-    }
-
     // Function to play the next song in the album
     fun playNextSongs(queueSongs : List<SongsModel>, context: Context) {
         if (queueSongs.isEmpty()) return
@@ -179,6 +166,9 @@ class PlayerViewModel @Inject constructor(private val currentSongState: CurrentS
     @Volatile private var canvasRequestId: String = ""
 
     fun loadCanvas(trackId: String) {
+        // Queue edits re-run this for the same track; clearing would rebuild the
+        // video player and flash black for a second.
+        if (trackId == canvasRequestId && _canvasUrl.value != null) return
         _canvasUrl.value = null
         canvasRequestId = trackId
         if (trackId.isBlank()) return

@@ -17,6 +17,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.Normalizer
@@ -142,6 +143,18 @@ object SongPlayer {
     // Tracks which query is the latest play request so a slow resolve for an old
     // tap doesn't clobber a newer one (fast switching).
     @Volatile private var currentRequest: String = ""
+    // Next queue track already appended to the player (its play query), so ExoPlayer
+    // moves on by itself without passing through ENDED/IDLE (#67: Android Auto left
+    // Now Playing on that gap). Null when nothing is queued ahead.
+    @Volatile private var preloadedNext: String? = null
+    @Volatile private var preloading = false
+
+    /** Fired (main thread) when the player moved on to the preloaded track [query]. */
+    @Volatile var onPreloadedTrackStarted: ((query: String) -> Unit)? = null
+
+    // Request and position of the last re-resolve after a mid-play error.
+    @Volatile private var retriedRequest: String? = null
+    @Volatile private var retriedAtMs: Long = 0L
 
     // Latest track metadata (title / artist / cover URL) so the MediaItem we build
     // carries it into the system media notification. Set via [setNowPlayingMeta]
@@ -170,6 +183,17 @@ object SongPlayer {
     }
 
     private val featSearchPattern = Regex("""\s*[\(\[]\s*(feat|ft)\..*?[\)\]]""", RegexOption.IGNORE_CASE)
+
+    /** What the queue registered for [song], so lossless matching needs no Spotify lookup. */
+    private fun losslessTrackInfo(song: String): com.music.spotui.lossless.LosslessSource.TrackInfo {
+        val meta = metadataRegistry[song] ?: return com.music.spotui.lossless.LosslessSource.TrackInfo()
+        return com.music.spotui.lossless.LosslessSource.TrackInfo(
+            title = meta.title,
+            artist = meta.artist.substringBefore(",").trim(),
+            durationSec = (durationRegistry[song] ?: 0) / 1000,
+            isrc = meta.isrc,
+        )
+    }
 
     private fun cleanSpotifySearchTitle(title: String): String =
         title.replace(featSearchPattern, "").trim()
@@ -202,6 +226,8 @@ object SongPlayer {
         val appContext = context.applicationContext
         appCtx = appContext
         currentRequest = song
+        retriedRequest = null
+        preloadedNext = null
         // A manual play (tap / next / prev) supersedes any in-flight crossfade.
         cancelCrossfade()
         // Do not keep the previous track audible while this request resolves.
@@ -247,6 +273,10 @@ object SongPlayer {
         }
         scope.launch {
             try {
+                if (wantsQuickStart(song, appContext)) {
+                    quickStartThenUpgrade(song, appContext)
+                    return@launch
+                }
                 val streamUrl = resolveStreamUrl(song, appContext, forPlayback = true) ?: run {
                     // Tell the user instead of silently leaving the request on.
                     if (currentRequest == song) withContext(Dispatchers.Main) {
@@ -262,34 +292,189 @@ object SongPlayer {
                 }
                 // A newer tap superseded this one while we were resolving — drop it.
                 if (currentRequest != song) return@launch
-                withContext(Dispatchers.Main) {
-                    if (currentRequest != song) return@withContext
-                    ensurePlayer(appContext)
-                    player!!.setMediaItem(buildMediaItem(streamUrl, streamMimeType(streamUrl)))
-                    player!!.prepare()
-                    // Restored session: continue from where the last run stopped.
-                    if (song == restoreQuery && restorePositionMs > 0) {
-                        player!!.seekTo(restorePositionMs)
-                    }
-                    restoreQuery = null
-                    player!!.playWhenReady = true
-                }
-                startPositionWatch()
+                startStream(song, streamUrl, appContext)
             } catch (e: Exception) {
                 Log.e(TAG, "playSong failed for query: $song", e)
             }
         }
     }
 
+    private suspend fun startStream(song: String, streamUrl: String, appContext: Context, mimeType: String? = streamMimeType(streamUrl)) {
+        withContext(Dispatchers.Main) {
+            if (currentRequest != song) return@withContext
+            ensurePlayer(appContext)
+            player!!.setMediaItem(buildMediaItem(streamUrl, mimeType))
+            player!!.prepare()
+            // Restored session: continue from where the last run stopped.
+            if (song == restoreQuery && restorePositionMs > 0) {
+                player!!.seekTo(restorePositionMs)
+            }
+            restoreQuery = null
+            player!!.playWhenReady = true
+        }
+        startPositionWatch()
+    }
+
+    private fun streamFailed(song: String, appContext: Context) {
+        if (currentRequest != song) return
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            android.widget.Toast.makeText(
+                appContext, "Couldn't find a playable stream for this track", android.widget.Toast.LENGTH_SHORT,
+            ).show()
+            onStreamFailed?.invoke(song)
+        }
+    }
+
+    // Lossless lookups take ~20 s against ~4 s for YouTube, so a fresh lossless track
+    // starts on YouTube and switches over when the FLAC is ready.
+    private fun wantsQuickStart(song: String, ctx: Context): Boolean =
+        losslessStreaming && youtubeEnabled &&
+            com.music.spotui.data.preferences.currentStreamingQuality(ctx).lossless &&
+            !song.startsWith("content://") && !song.startsWith("file://") &&
+            !streamCache.containsKey(song) &&
+            com.music.spotui.data.preferences.downloadedPathForQuery(ctx, song) == null &&
+            alternativeStreamForPlayback(song, ctx) == null &&
+            (trackIdRegistry[song] ?: spotifyTrackIdForPlayback(song)) != null
+
+    private fun isLosslessSource(song: String): Boolean =
+        sourceCache[song]?.startsWith("Lossless") == true || qualityCache[song] == "FLAC"
+
+    private suspend fun quickStartThenUpgrade(song: String, ctx: Context) = kotlinx.coroutines.coroutineScope {
+        val quality = com.music.spotui.data.preferences.currentStreamingQuality(ctx)
+        val best = async { resolveStreamUrl(song, ctx, allowYouTube = false) }
+        val quick = async { resolveYtPlayback(song, quality.audioQuality, ctx) }
+        val bestFirst = kotlinx.coroutines.selects.select<Boolean> {
+            best.onAwait { true }
+            quick.onAwait { false }
+        }
+        // Lossless was ready first: play it straight away.
+        val early = if (bestFirst) best.await()?.takeIf { isLosslessSource(song) } else null
+        if (early != null) {
+            quick.cancel()
+            currentSource = sourceCache[song] ?: currentSource
+            currentQuality = qualityCache[song].orEmpty()
+            startStream(song, early, ctx, streamMimeType(early, sourceCache[song].orEmpty()))
+            return@coroutineScope
+        }
+        val fast = quick.await()
+        if (currentRequest != song) return@coroutineScope
+        if (fast != null) {
+            currentSource = "YouTube"
+            currentQuality = ytQualityLabel(fast)
+            startStream(song, fast.streamUrl, ctx)
+        }
+        val better = best.await()
+        if (currentRequest != song) return@coroutineScope
+        when {
+            better != null && isLosslessSource(song) && fast != null -> swapToLossless(song, better)
+            better != null && fast == null -> startStream(song, better, ctx, streamMimeType(better, sourceCache[song].orEmpty()))
+            fast == null -> streamFailed(song, ctx)
+            else -> {
+                // No lossless copy: remember the YouTube stream so a replay starts at once.
+                streamCache[song] = fast.streamUrl
+                sourceCache[song] = "YouTube"
+                qualityCache[song] = ytQualityLabel(fast)
+            }
+        }
+    }
+
+    /**
+     * Replace the quick-start stream with the lossless one without a gap: the FLAC
+     * loads muted on a second player a few seconds ahead, starts when playback gets
+     * there, and a short crossfade (the crossfade engine) hides any small offset
+     * between the two masters. Falls back to a plain switch if it can't line up.
+     */
+    private suspend fun swapToLossless(song: String, url: String) {
+        val ctx = appCtx ?: return
+        val mime = streamMimeType(url, sourceCache[song].orEmpty())
+        val primary = player ?: return
+        val playing = withContext(Dispatchers.Main) { primary.playWhenReady && primary.isPlaying }
+        if (currentRequest != song || isCrossfading) return
+        if (!playing || !seamlessSwap(song, url, mime, primary, ctx)) hardSwap(song, url, mime)
+    }
+
+    private suspend fun seamlessSwap(
+        song: String, url: String, mime: String?, primary: ExoPlayer, ctx: Context,
+    ): Boolean {
+        val leadMs = 4_000L
+        val (sp, sf) = withContext(Dispatchers.Main) { createPlayerWithFilter(ctx, handleAudioFocus = false) }
+        val startAt = withContext(Dispatchers.Main) { primary.currentPosition + leadMs }
+        isCrossfading = true // user actions now cancel this via cancelCrossfade()
+        secondaryPlayer = sp
+        secondaryPlayerFilter = sf
+        pendingNextSong = null // same song: no queue/UI change when it completes
+        fun stillOn() = currentRequest == song && secondaryPlayer === sp && player === primary
+        withContext(Dispatchers.Main) {
+            sp.setMediaItem(buildMediaItem(url, mime), startAt)
+            sp.volume = 0f
+            sp.playWhenReady = false
+            sp.prepare()
+        }
+        // Wait until the FLAC is buffered at startAt, while the stream plays toward it.
+        val ready = kotlinx.coroutines.withTimeoutOrNull(leadMs - 500) {
+            while (withContext(Dispatchers.Main) { sp.playbackState != Player.STATE_READY }) {
+                if (!stillOn()) return@withTimeoutOrNull false
+                delay(50)
+            }
+            true
+        } == true
+        if (!ready || !stillOn()) {
+            if (secondaryPlayer === sp) cancelCrossfade() // releases sp, restores state
+            return false
+        }
+        // Start it the moment playback reaches startAt (a pause meanwhile: plain switch).
+        while (stillOn()) {
+            val (pos, playingNow) = withContext(Dispatchers.Main) { primary.currentPosition to primary.isPlaying }
+            if (!playingNow) {
+                cancelCrossfade()
+                return false
+            }
+            if (pos >= startAt - 15) break
+            delay(10)
+        }
+        if (!stillOn()) return false
+        withContext(Dispatchers.Main) { sp.playWhenReady = true }
+        preloadedNext = null // the promoted player starts without anything queued ahead
+        performCrossfade(400, djMode = false)
+        currentSource = sourceCache[song] ?: currentSource
+        currentQuality = qualityCache[song].orEmpty()
+        Log.d(TAG, "switched seamlessly to $currentSource for: $song")
+        return true
+    }
+
+    /** Plain switch at the same position (used when paused or if lining up failed). */
+    private suspend fun hardSwap(song: String, url: String, mime: String?) = withContext(Dispatchers.Main) {
+        val p = player ?: return@withContext
+        if (currentRequest != song || isCrossfading) return@withContext
+        val pos = p.currentPosition
+        val playing = p.playWhenReady
+        preloadedNext = null // setMediaItem replaces anything queued ahead
+        p.setMediaItem(buildMediaItem(url, mime), pos)
+        p.prepare()
+        p.playWhenReady = playing
+        currentSource = sourceCache[song] ?: currentSource
+        currentQuality = qualityCache[song].orEmpty()
+        Log.d(TAG, "switched to $currentSource at ${pos / 1000}s for: $song")
+    }
+
     // Build a MediaItem carrying the current track's metadata so the system media
     // notification (MediaSession) shows the right title / artist / artwork.
-    private fun buildMediaItem(streamUrl: String, mimeType: String? = null): MediaItem {
+    private fun buildMediaItem(
+        streamUrl: String,
+        mimeType: String? = null,
+        query: String = currentRequest,
+        title: String = metaTitle,
+        artist: String = metaArtist,
+        cover: String = metaCover,
+    ): MediaItem {
         val metadata = androidx.media3.common.MediaMetadata.Builder()
-            .setTitle(metaTitle)
-            .setArtist(metaArtist)
-            .apply { if (metaCover.isNotBlank()) setArtworkUri(android.net.Uri.parse(metaCover)) }
+            .setTitle(title)
+            .setArtist(artist)
+            .apply { if (cover.isNotBlank()) setArtworkUri(android.net.Uri.parse(cover)) }
             .build()
         return MediaItem.Builder()
+            // The play query, so a gapless transition tells us which track is now playing.
+            .setMediaId(query)
             .setUri(streamUrl)
             // Hint the container so ExoPlayer picks the right source/extractor even
             // when the URL has no extension: TIDAL lossless is a DASH .mpd manifest,
@@ -300,7 +485,7 @@ object SongPlayer {
     }
 
     /** MIME hint for a resolved stream: DASH manifest, single-file FLAC, or none. */
-    private fun streamMimeType(streamUrl: String): String? {
+    private fun streamMimeType(streamUrl: String, source: String = currentSource): String? {
         val bare = streamUrl.substringBefore('?').lowercase()
         return when {
             streamUrl.startsWith("deezer://") ->
@@ -309,7 +494,7 @@ object SongPlayer {
             streamUrl.startsWith("data:application/dash+xml") ||
                 bare.endsWith(".mpd") || streamUrl.contains("manifest.tidal.com") || streamUrl.contains("/manifests/") ->
                 androidx.media3.common.MimeTypes.APPLICATION_MPD
-            bare.endsWith(".flac") || currentSource.startsWith("Lossless") ->
+            bare.endsWith(".flac") || source.startsWith("Lossless") ->
                 androidx.media3.common.MimeTypes.AUDIO_FLAC
             else -> null
         }
@@ -335,19 +520,6 @@ object SongPlayer {
         }
     }
 
-    /**
-     * Warm the cache for the first [count] tracks of a freshly-loaded list
-     * (album/artist/search). Resolves them sequentially so we don't fire a dozen
-     * PoToken/player chains at once, but get the likely-next taps ready ahead of
-     * time — this is what kills the "~3s per track" first-tap latency.
-     */
-    fun prefetchList(songs: List<String>, context: Context, count: Int = 4) {
-        // Do not resolve streams for whole result/album lists. That made search
-        // and album screens kick off several network player/FLAC lookups before
-        // the user chose anything, which feels like the app is downloading the
-        // catalog instead of streaming the tapped song.
-    }
-
     // ── Intro preloading (instant playback) ──
     // Resolving the stream URL hides most latency, but ExoPlayer still has to open the
     // connection and buffer the first segment on tap. We pre-cache the first ~1 MB (≈20–40s
@@ -358,7 +530,7 @@ object SongPlayer {
 
     @Volatile private var mediaCache: androidx.media3.datasource.cache.SimpleCache? = null
 
-    private fun mediaCache(context: Context): androidx.media3.datasource.cache.SimpleCache =
+    internal fun mediaCache(context: Context): androidx.media3.datasource.cache.SimpleCache =
         mediaCache ?: synchronized(this) {
             mediaCache ?: androidx.media3.datasource.cache.SimpleCache(
                 java.io.File(context.cacheDir, "media"),
@@ -411,7 +583,12 @@ object SongPlayer {
     // prefetch of upcoming tracks doesn't clobber the current source badge (a
     // prefetch resolving the NEXT track via YouTube was flipping the badge to
     // "YouTube" while the current track streamed from Spotify).
-    private suspend fun resolveStreamUrl(song: String, appContext: Context, forPlayback: Boolean = false): String? {
+    private suspend fun resolveStreamUrl(
+        song: String,
+        appContext: Context,
+        forPlayback: Boolean = false,
+        allowYouTube: Boolean = true,
+    ): String? {
         // Imported local files: the play query IS the file's content:// / file:// URI.
         // ExoPlayer plays it directly (FLAC/MP3/WAV/… via its built-in extractors).
         if (song.startsWith("content://") || song.startsWith("file://")) {
@@ -439,12 +616,7 @@ object SongPlayer {
                     }
                     val quality = com.music.spotui.data.preferences.currentStreamingQuality(appContext)
                     val playback = resolveYtPlayback(alt.value, quality.audioQuality, appContext) ?: return null
-                    val codec = playback.format.mimeType
-                        .substringAfter("codecs=\"", "").substringBefore('"').substringBefore('.')
-                        .uppercase()
-                    val ytQuality = listOf(codec, "${playback.format.bitrate / 1000} kbps")
-                        .filter { it.isNotBlank() }.joinToString(" ")
-                    if (forPlayback) currentQuality = ytQuality
+                    if (forPlayback) currentQuality = ytQualityLabel(playback)
                     playback.streamUrl
                 }
                 else -> null
@@ -499,7 +671,10 @@ object SongPlayer {
                 )
             }
             if (r is com.music.spotui.deezer.DeezerSource.Result.Success) {
-                if (r.mimeFlac || !quality.lossless) {
+                // At High, YouTube Opus (~160 kbps) beats a free account's MP3 128 (#66).
+                val belowYouTube = r.lowBitrate && youtubeEnabled &&
+                    quality.audioQuality == com.metrolist.music.constants.AudioQuality.HIGH
+                if (r.mimeFlac || (!quality.lossless && !belowYouTube)) {
                     Log.d(TAG, "deezer ${r.qualityLabel} for: $song")
                     if (forPlayback) { currentSource = "Deezer"; currentQuality = r.qualityLabel }
                     streamCache[song] = r.uri
@@ -507,8 +682,8 @@ object SongPlayer {
                     qualityCache[song] = r.qualityLabel
                     return r.uri
                 }
-                heldDeezer = r // Deezer MP3, but Lossless requested — try FLAC first.
-                Log.d(TAG, "deezer only MP3; trying FLAC first for: $song")
+                heldDeezer = r // MP3 only: try FLAC (Lossless) or YouTube (MP3 128 at High) first.
+                Log.d(TAG, "deezer only ${r.qualityLabel}; trying better sources first for: $song")
             } else {
                 Log.d(TAG, "deezer miss ($r), continuing for: $song")
             }
@@ -518,7 +693,7 @@ object SongPlayer {
         if (losslessStreaming && quality.lossless) {
             (trackIdRegistry[song] ?: spotifyTrackIdForPlayback(song))?.let { spotifyId ->
                 val r = kotlinx.coroutines.withTimeoutOrNull(15_000) {
-                    com.music.spotui.lossless.LosslessSource.resolve(appContext, spotifyId, preferHiRes = losslessHiRes)
+                    com.music.spotui.lossless.LosslessSource.resolve(appContext, spotifyId, losslessTrackInfo(song), losslessHiRes)
                 }
                 if (r is com.music.spotui.lossless.LosslessSource.Result.Success) {
                     val flacQuality = "FLAC ${r.track.quality}-bit"
@@ -536,8 +711,7 @@ object SongPlayer {
             }
         }
 
-        // Deezer MP3 fallback (held above) before dropping to YouTube.
-        heldDeezer?.let { r ->
+        fun useHeldDeezer(r: com.music.spotui.deezer.DeezerSource.Result.Success): String {
             Log.d(TAG, "using Deezer MP3 fallback for: $song")
             if (forPlayback) { currentSource = "Deezer"; currentQuality = r.qualityLabel }
             streamCache[song] = r.uri
@@ -545,9 +719,11 @@ object SongPlayer {
             qualityCache[song] = r.qualityLabel
             return r.uri
         }
-        if (!youtubeEnabled) {
-            Log.w(TAG, "YouTube fallback disabled — no stream for: $song")
-            return null
+        // Deezer MP3 320 (held above) before YouTube; MP3 128 only if YouTube fails.
+        heldDeezer?.takeIf { !it.lowBitrate }?.let { return useHeldDeezer(it) }
+        if (!youtubeEnabled || !allowYouTube) {
+            if (!youtubeEnabled) Log.w(TAG, "YouTube fallback disabled — no stream for: $song")
+            return heldDeezer?.let(::useHeldDeezer)
         }
         if (forPlayback) {
             currentSource = "YouTube"
@@ -555,18 +731,23 @@ object SongPlayer {
             // a stale "FLAC 24-bit" badge on a YouTube stream.
             currentQuality = ""
         }
-        val playback = resolveYtPlayback(song, quality.audioQuality, appContext) ?: return null
-        // e.g. "OPUS 141 kbps" from the chosen adaptive format.
-        val codec = playback.format.mimeType
-            .substringAfter("codecs=\"", "").substringBefore('"').substringBefore('.')
-            .uppercase()
-        val ytQuality = listOf(codec, "${playback.format.bitrate / 1000} kbps")
-            .filter { it.isNotBlank() }.joinToString(" ")
+        val playback = resolveYtPlayback(song, quality.audioQuality, appContext)
+            ?: return heldDeezer?.let(::useHeldDeezer)
+        val ytQuality = ytQualityLabel(playback)
         if (forPlayback) currentQuality = ytQuality
         streamCache[song] = playback.streamUrl
         sourceCache[song] = "YouTube"
         qualityCache[song] = ytQuality
         return playback.streamUrl
+    }
+
+    // e.g. "OPUS 141 kbps" from the chosen adaptive format.
+    private fun ytQualityLabel(playback: YTPlayerUtils.PlaybackData): String {
+        val codec = playback.format.mimeType
+            .substringAfter("codecs=\"", "").substringBefore('"').substringBefore('.')
+            .uppercase()
+        return listOf(codec, "${playback.format.bitrate / 1000} kbps")
+            .filter { it.isNotBlank() }.joinToString(" ")
     }
 
     private fun alternativeStreamForPlayback(
@@ -580,369 +761,12 @@ object SongPlayer {
         return key?.let { com.music.spotui.data.preferences.getAlternativeStream(appContext, it) }
     }
 
-    // ── Downloads (offline playback) ──
-    // Tracks which song queries are mid-download so the UI can show a spinner and
-    // we don't kick off the same download twice.
-    private val downloading = java.util.Collections.newSetFromMap(
-        java.util.concurrent.ConcurrentHashMap<String, Boolean>()
-    )
-    @Volatile var onDownloadsChanged: (() -> Unit)? = null
+    /** Fired (main thread) when the current track plays to its end. */
+    @Volatile var onTrackEnded: (() -> Unit)? = null
 
     /** Fired (main thread) when a stream can't be resolved for [song], so the caller
      *  can skip to the next track instead of leaving playback silent. */
     @Volatile var onStreamFailed: ((String) -> Unit)? = null
-
-    // Per-query download progress, 0..100. Present only while a download is active.
-    private val downloadProgress = java.util.concurrent.ConcurrentHashMap<String, Int>()
-    // The actual SongsModel of each in-progress download, so the Downloads screen can
-    // render it (with a progress bar) before the file exists / it's added to prefs.
-    private val downloadingSongs =
-        java.util.concurrent.ConcurrentHashMap<String, com.music.spotui.data.entity.SongsModel>()
-
-    fun isDownloading(query: String): Boolean = downloading.contains(query)
-
-    /** Current download progress (0..100) for a query, or -1 if unknown/not downloading. */
-    fun downloadProgress(query: String): Int = downloadProgress[query] ?: -1
-
-    /** Snapshot of the currently-downloading tracks paired with their percent (0..100). */
-    fun downloadingSnapshot(): List<Pair<com.music.spotui.data.entity.SongsModel, Int>> =
-        downloadingSongs.entries.map { (q, song) -> song to (downloadProgress[q] ?: 0) }
-
-    // Last download failure reason, surfaced to the user as a Toast for diagnosis.
-    @Volatile var lastDownloadError: String? = null
-
-    // googlevideo stream URLs 403 without a browser User-Agent and need redirects
-    // followed (http↔https) — ExoPlayer does both, so a raw URLConnection must too.
-    private fun openDownloadConn(url: String): java.net.HttpURLConnection =
-        (java.net.URL(url).openConnection() as java.net.HttpURLConnection).apply {
-            connectTimeout = 15000
-            readTimeout = 30000
-            instanceFollowRedirects = true
-            setRequestProperty(
-                "User-Agent",
-                "Mozilla/5.0 (Linux; Android 14; Pixel) AppleWebKit/537.36 " +
-                    "(KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
-            )
-        }
-
-    /**
-     * Download [url] to [tmpFile] using HTTP **Range** requests in chunks, reporting
-     * progress (0..100) for [query]. A single full-file GET of a googlevideo stream gets
-     * reset partway through (`SocketException: Connection reset`) — the server expects the
-     * audio fetched in byte ranges, which is how ExoPlayer/NewPipe get it. Each chunk is a
-     * short connection (retried a few times on reset); writing is append-continuous so a
-     * retried chunk resumes from the current byte position. Returns true iff the whole
-     * file was written. Falls back gracefully if the server ignores Range (HTTP 200).
-     */
-    private fun httpDownloadRanged(url: String, tmpFile: java.io.File, query: String): Boolean {
-        val chunk = 8L * 1024 * 1024 // 8 MB
-        var total = -1L
-        var position = 0L
-        downloadProgress[query] = 0
-        try {
-            java.io.BufferedOutputStream(tmpFile.outputStream()).use { output ->
-                outer@ while (true) {
-                    val end = if (total > 0) minOf(position + chunk - 1, total - 1) else position + chunk - 1
-                    var attempt = 0
-                    var fullBody = false
-                    while (true) {
-                        attempt++
-                        val conn = openDownloadConn(url)
-                        conn.setRequestProperty("Range", "bytes=$position-$end")
-                        try {
-                            val code = conn.responseCode
-                            if (code !in 200..299) {
-                                lastDownloadError = "Stream returned HTTP $code"
-                                return false
-                            }
-                            if (total < 0) {
-                                total = conn.getHeaderField("Content-Range")
-                                    ?.substringAfter('/')?.toLongOrNull()
-                                    ?: conn.contentLengthLong
-                            }
-                            fullBody = code == 200 // server ignored Range → whole file in one body
-                            conn.inputStream.use { input ->
-                                val buf = ByteArray(64 * 1024)
-                                while (true) {
-                                    val r = input.read(buf)
-                                    if (r < 0) break
-                                    output.write(buf, 0, r)
-                                    position += r
-                                    if (total > 0) {
-                                        val pct = ((position * 100) / total).toInt().coerceIn(0, 100)
-                                        if (downloadProgress[query] != pct) {
-                                            downloadProgress[query] = pct
-                                            onDownloadsChanged?.invoke()
-                                        }
-                                    }
-                                }
-                            }
-                            break // this chunk completed
-                        } catch (e: Exception) {
-                            Log.w(TAG, "chunk @${position} failed (attempt $attempt): ${e.message}")
-                            if (attempt >= 4) {
-                                lastDownloadError = e.message ?: "Connection reset"
-                                return false
-                            }
-                            // retry the remainder of this chunk from the current position
-                        } finally {
-                            conn.disconnect()
-                        }
-                    }
-                    if (fullBody) { total = position; break@outer }
-                    if (total in 1..position) break@outer
-                    if (total < 0) break@outer // couldn't determine size; assume done
-                }
-            }
-            downloadProgress[query] = 100
-            return total <= 0 || position >= total
-        } catch (e: Exception) {
-            lastDownloadError = e.message ?: "Download error"
-            return false
-        }
-    }
-
-    /**
-     * Resolve the track's stream and save the audio to local storage for offline
-     * playback. Runs on the IO scope; invokes [onComplete] (main thread) with whether
-     * it succeeded. No-op if it's already downloaded or downloading.
-     */
-    /** Download every track in a list (album/playlist). Each song dedupes and
-     *  reports its own progress via the existing per-song machinery. */
-    fun downloadAll(songs: List<com.music.spotui.data.entity.SongsModel>, context: Context) {
-        songs.forEach { downloadSong(it, context) }
-    }
-
-    /** True once every track in [songs] is downloaded (for the album's "downloaded" state). */
-    fun allDownloaded(
-        songs: List<com.music.spotui.data.entity.SongsModel>,
-        context: Context,
-    ): Boolean {
-        if (songs.isEmpty()) return false
-        val appContext = context.applicationContext
-        return songs.all {
-            com.music.spotui.data.preferences.isDownloaded(appContext, it.id.toString())
-        }
-    }
-
-    fun downloadSong(
-        song: com.music.spotui.data.entity.SongsModel,
-        context: Context,
-        onComplete: (Boolean) -> Unit = {},
-    ) {
-        val appContext = context.applicationContext
-        val query = song.url
-        if (query.isBlank() ||
-            com.music.spotui.data.preferences.isDownloaded(appContext, song.id.toString()) ||
-            !downloading.add(query)
-        ) return
-        downloadingSongs[query] = song
-        downloadProgress[query] = 0
-        onDownloadsChanged?.invoke()
-        lastDownloadError = null
-        scope.launch {
-            val ok = runCatching { downloadToFile(song, appContext) }
-                .onFailure { lastDownloadError = it.message ?: "Unexpected error" }
-                .getOrDefault(false)
-            downloading.remove(query)
-            downloadProgress.remove(query)
-            downloadingSongs.remove(query)
-            withContext(Dispatchers.Main) {
-                if (!ok) {
-                    android.widget.Toast.makeText(
-                        appContext,
-                        "Download failed: ${lastDownloadError ?: "unknown reason"}",
-                        android.widget.Toast.LENGTH_LONG,
-                    ).show()
-                }
-                onDownloadsChanged?.invoke()
-                onComplete(ok)
-            }
-        }
-    }
-
-    private suspend fun downloadToFile(
-        song: com.music.spotui.data.entity.SongsModel,
-        appContext: Context,
-    ): Boolean {
-        val dlQuality = com.music.spotui.data.preferences.getDownloadQuality(appContext)
-        // Deezer: use immediately if it yields FLAC (HiFi). If it only yields MP3
-        // (free account), HOLD it and try the real FLAC sources first — otherwise a
-        // free Deezer MP3 would pre-empt lossless.
-        var heldDeezer: com.music.spotui.deezer.DeezerSource.Resolved? = null
-        if (deezerEnabled && com.music.spotui.data.preferences.isDeezerEnabled(appContext)) {
-            val raw = kotlinx.coroutines.withTimeoutOrNull(30_000) { resolveDeezerRaw(song, appContext) }
-            if (raw != null) {
-                if (raw.isFlac) {
-                    if (downloadDeezerRaw(song, appContext, raw)) return true
-                } else {
-                    heldDeezer = raw
-                }
-            }
-        }
-        // Lossless FLAC: SpotiFLAC gated (if verified) + Tidal/community. Saves .flac.
-        if (losslessStreaming && song.spotifyTrackId.isNotBlank()) {
-            val r = kotlinx.coroutines.withTimeoutOrNull(45_000) {
-                com.music.spotui.lossless.LosslessSource.resolve(appContext, song.spotifyTrackId, preferHiRes = losslessHiRes)
-            }
-            if (r is com.music.spotui.lossless.LosslessSource.Result.Success) {
-                val dir = java.io.File(appContext.filesDir, "downloads").apply { mkdirs() }
-                val outFile = java.io.File(dir, "${song.id}.flac")
-                val tmpFile = java.io.File(dir, "${song.id}.flacpart")
-                if (httpDownloadRanged(r.track.url, tmpFile, song.url) && tmpFile.renameTo(outFile)) {
-                    com.music.spotui.data.preferences.addDownload(appContext, song, outFile.absolutePath)
-                    Log.d(TAG, "lossless downloaded (${r.track.provider} ${r.track.quality}-bit): ${song.title}")
-                    return true
-                }
-                runCatching { tmpFile.delete() }
-            }
-        }
-        // Deezer MP3 fallback (held above) before dropping to a YouTube m4a.
-        heldDeezer?.let { if (downloadDeezerRaw(song, appContext, it)) return true }
-        if (!youtubeEnabled) {
-            lastDownloadError = "Track not available for download"
-            return false
-        }
-
-        val query = song.url
-        // Resolve a fresh network stream URL (bypass any local-file short-circuit),
-        // walking the ranked video candidates like playback does.
-        val playback = resolveYtPlayback(query, dlQuality.audioQuality, appContext) ?: run {
-            lastDownloadError = "Couldn't resolve a stream"
-            return false
-        }
-
-        val dir = java.io.File(appContext.filesDir, "downloads").apply { mkdirs() }
-        val outFile = java.io.File(dir, "${song.id}.m4a")
-        val tmpFile = java.io.File(dir, "${song.id}.part")
-
-        if (!httpDownloadRanged(playback.streamUrl, tmpFile, song.url)) {
-            runCatching { tmpFile.delete() }
-            return false
-        }
-        if (!tmpFile.renameTo(outFile)) {
-            lastDownloadError = "Couldn't save file"
-            runCatching { tmpFile.delete() }
-            return false
-        }
-        com.music.spotui.data.preferences.addDownload(appContext, song, outFile.absolutePath)
-        return true
-    }
-
-    // (Removed downloadFlacToFile — the SpotiFLAC community-proxy FLAC downloader.
-    // Those servers are dead and it never produced a file; real FLAC now comes from
-    // the Deezer downloader below.)
-
-    /**
-     * Download a Deezer track and decrypt it to a real audio file. Resolves the
-     * stream (ISRC → Deezer, account-tier quality), streams the Blowfish-encrypted
-     * CDN bytes and decrypts every 3rd 2048-byte block on the way to `<id>.flac` /
-     * `<id>.mp3`. Returns false on any miss so the caller can fall back.
-     */
-    private suspend fun resolveDeezerRaw(
-        song: com.music.spotui.data.entity.SongsModel,
-        appContext: Context,
-    ): com.music.spotui.deezer.DeezerSource.Resolved? =
-        com.music.spotui.deezer.DeezerSource.resolveRaw(
-            appContext,
-            spotifyId = song.spotifyTrackId.takeIf { it.isNotBlank() },
-            isrc = null,
-            searchQuery = listOf(song.title, song.singer).filter { it.isNotBlank() }.joinToString(" "),
-            expectedDurationSec = if (song.durationMs > 0) song.durationMs / 1000 else 0,
-        )
-
-    private fun downloadDeezerRaw(
-        song: com.music.spotui.data.entity.SongsModel,
-        appContext: Context,
-        raw: com.music.spotui.deezer.DeezerSource.Resolved,
-    ): Boolean {
-        val ext = if (raw.isFlac) "flac" else "mp3"
-        val dir = java.io.File(appContext.filesDir, "downloads").apply { mkdirs() }
-        val outFile = java.io.File(dir, "${song.id}.$ext")
-        val tmpFile = java.io.File(dir, "${song.id}.dzpart")
-        if (!deezerDownloadDecrypted(raw.url, raw.encrypted, raw.trackId, tmpFile, song.url)) {
-            runCatching { tmpFile.delete() }
-            return false
-        }
-        if (!tmpFile.renameTo(outFile)) {
-            lastDownloadError = "Couldn't save file"
-            runCatching { tmpFile.delete() }
-            return false
-        }
-        com.music.spotui.data.preferences.addDownload(appContext, song, outFile.absolutePath)
-        Log.d(TAG, "Deezer downloaded (${raw.qualityLabel}): ${song.title}")
-        return true
-    }
-
-    /**
-     * Stream [url] and, if [encrypted], Blowfish-decrypt every 3rd 2048-byte block
-     * (Deezer's stripe cipher) while writing to [tmpFile], reporting progress for
-     * [query]. Produces a plain, fully-decrypted audio file.
-     */
-    private fun deezerDownloadDecrypted(
-        url: String,
-        encrypted: Boolean,
-        trackId: String,
-        tmpFile: java.io.File,
-        query: String,
-    ): Boolean {
-        downloadProgress[query] = 0
-        val conn = openDownloadConn(url)
-        return try {
-            val code = conn.responseCode
-            if (code !in 200..299) {
-                lastDownloadError = "Deezer CDN HTTP $code"
-                return false
-            }
-            val total = conn.contentLengthLong
-            val cipher = if (encrypted) {
-                com.music.spotui.deezer.DeezerCrypto.cipher(
-                    com.music.spotui.deezer.DeezerCrypto.trackKey(trackId),
-                )
-            } else {
-                null
-            }
-            java.io.BufferedOutputStream(tmpFile.outputStream()).use { output ->
-                conn.inputStream.use { input ->
-                    val buf = ByteArray(2048)
-                    var counter = 0
-                    var position = 0L
-                    while (true) {
-                        var read = 0
-                        while (read < 2048) {
-                            val r = input.read(buf, read, 2048 - read)
-                            if (r < 0) break
-                            read += r
-                        }
-                        if (read == 0) break
-                        val out = if (encrypted && read == 2048 && counter % 3 == 0) {
-                            cipher!!.doFinal(buf)
-                        } else {
-                            buf
-                        }
-                        output.write(out, 0, read)
-                        counter++
-                        position += read
-                        if (total > 0) {
-                            val pct = ((position * 100) / total).toInt().coerceIn(0, 100)
-                            if (downloadProgress[query] != pct) {
-                                downloadProgress[query] = pct
-                                onDownloadsChanged?.invoke()
-                            }
-                        }
-                        if (read < 2048) break // final partial chunk
-                    }
-                }
-            }
-            downloadProgress[query] = 100
-            true
-        } catch (e: Exception) {
-            lastDownloadError = e.message ?: "Deezer download error"
-            false
-        } finally {
-            runCatching { conn.disconnect() }
-        }
-    }
 
     private data class CandidateScore(
         val item: SongItem,
@@ -1327,7 +1151,18 @@ object SongPlayer {
      * Resolves a playable YouTube stream for [query], falling back through up to
      * 3 ranked video candidates when one has no obtainable stream.
      */
-    private suspend fun resolveYtPlayback(
+    internal suspend fun resolveYtPlayback(
+        query: String,
+        audioQuality: com.metrolist.music.constants.AudioQuality,
+        appContext: Context,
+    ): YTPlayerUtils.PlaybackData? =
+        // The PoToken/solver WebViews wait on JS callbacks with no deadline; a hung
+        // WebView left playback at 0:00 forever (#95, #79) instead of failing over.
+        kotlinx.coroutines.withTimeoutOrNull(45_000L) {
+            resolveYtPlaybackUnbounded(query, audioQuality, appContext)
+        } ?: null.also { Log.w(TAG, "YouTube resolve failed or timed out for: ${searchTextForPlayback(query)}") }
+
+    private suspend fun resolveYtPlaybackUnbounded(
         query: String,
         audioQuality: com.metrolist.music.constants.AudioQuality,
         appContext: Context,
@@ -1338,11 +1173,14 @@ object SongPlayer {
         suspend fun tryIds(ids: List<String>): YTPlayerUtils.PlaybackData? {
             for (videoId in ids) {
                 if (!tried.add(videoId)) continue
-                YTPlayerUtils.playerResponseForPlayback(
-                    videoId = videoId,
-                    audioQuality = audioQuality,
-                    connectivityManager = connectivityManager,
-                ).fold(
+                // One hung candidate must not use up the whole budget.
+                (kotlinx.coroutines.withTimeoutOrNull(15_000L) {
+                    YTPlayerUtils.playerResponseForPlayback(
+                        videoId = videoId,
+                        audioQuality = audioQuality,
+                        connectivityManager = connectivityManager,
+                    )
+                } ?: Result.failure(java.io.IOException("timed out"))).fold(
                     onSuccess = { return it },
                     onFailure = { Log.w(TAG, "stream failed for $videoId (${it.message}) — trying next candidate for: ${searchTextForPlayback(query)}") },
                 )
@@ -1435,14 +1273,48 @@ object SongPlayer {
      * Non-IO errors (decode, DRM, etc.) skip straight to the next track.
      */
     private val midPlayErrorListener = object : Player.Listener {
+        // Track end is detected here, not in the UI: Compose stops when the screen is
+        // off or the app is in the background, so the queue used to stall there.
+        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            val query = mediaItem?.mediaId ?: return
+            if (query != preloadedNext) return
+            // Gapless move onto the preloaded track: it is now the current request.
+            preloadedNext = null
+            currentRequest = query
+            retriedRequest = null
+            val p = player ?: return
+            if (p.currentMediaItemIndex > 0) p.removeMediaItems(0, p.currentMediaItemIndex)
+            appCtx?.let { ctx -> scope.launch { resolveStreamUrl(query, ctx, forPlayback = true) } } // badge
+            onPreloadedTrackStarted?.invoke(query)
+        }
+
+        override fun onPlaybackStateChanged(playbackState: Int) {
+            // Mid-crossfade the outgoing player may end first; the blend advances itself.
+            // An emptied playlist also reports ENDED (playSong clears it on every tap);
+            // treating that as a finished song skipped the track the user just picked.
+            if (playbackState == Player.STATE_ENDED && !isCrossfading &&
+                (player?.mediaItemCount ?: 0) > 0
+            ) onTrackEnded?.invoke()
+        }
+
         override fun onPlayerError(error: PlaybackException) {
-            val song = currentRequest.takeIf { it.isNotBlank() } ?: return
+            // A queued-ahead track can fail after the player moved onto it.
+            val song = player?.currentMediaItem?.mediaId?.takeIf { it.isNotBlank() }
+                ?: currentRequest.takeIf { it.isNotBlank() } ?: return
+            preloadedNext = null
             Log.w(TAG, "mid-play error for $song: ${error.errorCodeName} (code ${error.errorCode})")
             // Drop the cached URL — it may have expired (Deezer CDN, YouTube signing).
             streamCache.remove(song)
             sourceCache.remove(song)
             val ctx = appCtx ?: run { onStreamFailed?.invoke(song); return }
-            val isIoError = error.errorCode in 2000..2999
+            // Re-resolve again only if playback got further since the last one: YouTube
+            // can 403 a stream after ~1 min (#76, #48), and each fresh URL plays on. A URL
+            // that fails at the same spot again is dead, so skip instead of looping.
+            val pos = player?.currentPosition ?: 0L
+            val madeProgress = retriedRequest != song || pos > retriedAtMs + 10_000L
+            val isIoError = error.errorCode in 2000..2999 && madeProgress
+            retriedRequest = song
+            retriedAtMs = pos
             scope.launch {
                 if (isIoError) {
                     // Brief wait so a transient network blip has time to recover.
@@ -1641,6 +1513,7 @@ object SongPlayer {
                 }
                 if (isCrossfading) continue
                 val crossfadeMs = com.music.spotui.data.preferences.getCrossfadeMs(ctx)
+                managePreload(ctx, crossfadeMs)
                 if (crossfadeMs <= 0) continue
                 val state = boundState ?: continue
                 if (state.repeat.value) continue // repeat-one loops the same track
@@ -1654,6 +1527,50 @@ object SongPlayer {
                     triggerCrossfade(ctx, crossfadeMs)
                 }
             }
+        }
+    }
+
+    /**
+     * Queue the next track inside ExoPlayer ~30 s before the current one ends, so it
+     * starts gaplessly and the session never reports "stopped" between tracks.
+     * Crossfade and repeat keep their own paths; a stale preload is removed.
+     */
+    private suspend fun managePreload(ctx: Context, crossfadeMs: Int) {
+        val state = boundState ?: return
+        val p = player ?: return
+        val next = withContext(Dispatchers.Main) {
+            val q = state.queue.value
+            val cur = q.indexOfFirst { it.id == state.songId.value }
+            q.getOrNull(cur + 1)?.takeIf { cur >= 0 }
+        }
+        val wanted = next?.url?.takeIf { crossfadeMs <= 0 && !state.repeat.value && !webPlaybackActive() }
+        val queued = preloadedNext
+        if (queued != null && queued != wanted) {
+            // Repeat/crossfade turned on or the queue changed: drop the queued track.
+            withContext(Dispatchers.Main) {
+                if (p.mediaItemCount > 1) p.removeMediaItems(1, p.mediaItemCount)
+            }
+            preloadedNext = null
+        }
+        if (wanted == null || preloadedNext != null || preloading) return
+        val (pos, dur, ready) = withContext(Dispatchers.Main) {
+            Triple(p.currentPosition, p.duration, p.playbackState == Player.STATE_READY && p.mediaItemCount == 1)
+        }
+        if (!ready || dur <= 0 || dur - pos > 30_000L) return
+        val song = next
+        preloading = true
+        try {
+            val url = runCatching { resolveStreamUrl(song.url, ctx) }.getOrNull() ?: return
+            withContext(Dispatchers.Main) {
+                // Only if nothing changed while resolving.
+                if (player !== p || p.mediaItemCount != 1 || state.queue.value.none { it.url == song.url }) return@withContext
+                val mime = streamMimeType(url, sourceCache[song.url].orEmpty())
+                p.addMediaItem(buildMediaItem(url, mime, song.url, song.title, song.singer, song.coverUri))
+                preloadedNext = song.url
+                Log.d(TAG, "queued next track ahead: ${song.title}")
+            }
+        } finally {
+            preloading = false
         }
     }
 
@@ -1759,6 +1676,8 @@ object SongPlayer {
             // The promoted player now owns audio focus / becoming-noisy handling.
             incoming.setAudioAttributes(buildAudioAttributes(), /* handleAudioFocus = */ true)
             incoming.setHandleAudioBecomingNoisy(true)
+            // Error recovery and end-of-track detection follow the promoted player.
+            incoming.addListener(midPlayErrorListener)
             runCatching { old?.stop(); old?.release() }
             isCrossfading = false
             // Now that the new track is the sole audio source, switch the in-app UI

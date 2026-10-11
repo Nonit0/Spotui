@@ -127,13 +127,6 @@ private fun ArtistOverviewContent(
         )
     }
 
-    // Warm the stream cache for the top tracks so the first tap plays instantly.
-    LaunchedEffect(tracks) {
-        if (tracks.isNotEmpty()) {
-            SongPlayer.prefetchList(tracks.map { it.song.url }, context)
-        }
-    }
-
     // Followed = known locally OR followed on the real Spotify account.
     val followedIds by artistViewModel.followedArtistIds.collectAsState()
     var following by remember(overview.id, followedIds) {

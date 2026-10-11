@@ -80,11 +80,11 @@ fun DownloadsScreen(navController: NavController) {
     // shows a live percentage, and moves into the list when it finishes.
     var songs by remember { mutableStateOf(getDownloadedSongs(context)) }
     var inProgress by remember {
-        mutableStateOf(com.music.spotui.di.SongPlayer.downloadingSnapshot())
+        mutableStateOf(com.music.spotui.di.Downloads.downloadingSnapshot())
     }
     androidx.compose.runtime.LaunchedEffect(Unit) {
         while (true) {
-            val snap = com.music.spotui.di.SongPlayer.downloadingSnapshot()
+            val snap = com.music.spotui.di.Downloads.downloadingSnapshot()
             if (snap.size != inProgress.size) songs = getDownloadedSongs(context)
             inProgress = snap
             kotlinx.coroutines.delay(400)
@@ -234,6 +234,12 @@ fun DownloadsScreen(navController: NavController) {
                 }
 
                 // ── In-progress downloads (with live progress bar) ──
+                if (inProgress.isNotEmpty()) {
+                    androidx.compose.material3.TextButton(
+                        onClick = { com.music.spotui.di.Downloads.cancelAll() },
+                        modifier = Modifier.padding(horizontal = 8.dp),
+                    ) { Text("Cancel all downloads (${inProgress.size})", color = Color.White) }
+                }
                 inProgress.forEach { (song, pct) ->
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -318,6 +324,14 @@ fun DownloadsScreen(navController: NavController) {
                             Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
                                 Text(text = song.title, color = currentColor, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1)
                                 Text(text = song.singer, color = Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+                            }
+                            // Visible way into the song menu (export, remove…); long-press alone was hidden.
+                            androidx.compose.material3.IconButton(onClick = { menuSong = song }) {
+                                androidx.compose.material3.Icon(
+                                    painter = androidx.compose.ui.res.painterResource(R.drawable.ic_dots),
+                                    contentDescription = "More options for ${song.title}",
+                                    tint = Color.Gray,
+                                )
                             }
                         }
                     }

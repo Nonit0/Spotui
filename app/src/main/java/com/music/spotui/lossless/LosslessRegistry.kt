@@ -26,8 +26,12 @@ internal object LosslessRegistry {
     // Community backend API key (shared/published constant in SpotiFLAC's sources).
     const val API_KEY = "ak_8e3f1a7c2b5d9e4f0a6c3b8d1e5f2a9c7b4d0e6f"
 
-    // Signed-session base for the *gated* backends (experimental path 1a).
-    const val SESSION_BASE = "https://api.zarz.moe/v2"
+    // Issues the signed sessions the community download servers accept. Sessions from
+    // any other host (Spotui used api.zarz.moe) fail there with 401 "Signed request
+    // validation failed". Network call: IO only.
+    fun communityVerifyUrl(): String =
+        registry()?.optJSONObject("community")?.optString("verify")?.takeIf { it.startsWith("https://") }
+            ?.trimEnd('/') ?: "https://verify.spotbye.qzz.io"
 
     /** Community (gated) download endpoint for a provider, e.g. tidal → .../api/dl. */
     fun communityDlUrl(provider: String): String? =
@@ -43,11 +47,12 @@ internal object LosslessRegistry {
     // Known-good defaults (used until/if the registry refresh succeeds).
     private val DEFAULT_TIDAL = listOf("https://tidal.anandserver.cfd")
     private val DEFAULT_AMAZON = listOf("https://amazon.anandserver.cfd")
-    private val DEFAULT_QOBUZ = listOf("https://qobuz.anandserver.cfd")
 
     private const val CACHE_TTL_MS = 30 * 60 * 1000L
+    private const val FAILURE_RETRY_MS = 5 * 60 * 1000L
     @Volatile private var cached: JSONObject? = null
     @Volatile private var cachedAt = 0L
+    @Volatile private var failedAt = 0L
 
     /** Current Tidal community endpoints, freshest first, default appended. */
     fun tidalEndpoints(): List<String> = endpoints("tidal", "stream", DEFAULT_TIDAL)
@@ -60,9 +65,6 @@ internal object LosslessRegistry {
         return (fromReg + DEFAULT_AMAZON).map { it.trimEnd('/') }.distinct()
     }
 
-    /** Current Qobuz community endpoints (need a numeric Qobuz id). */
-    fun qobuzEndpoints(): List<String> = endpoints("qobuz", "stream", DEFAULT_QOBUZ)
-
     private fun endpoints(provider: String, category: String, default: List<String>): List<String> {
         val fromReg = registry()?.optJSONObject(provider)?.optJSONArray(category)?.let { arr ->
             (0 until arr.length()).mapNotNull { arr.optString(it).takeIf(String::isNotBlank) }
@@ -73,21 +75,28 @@ internal object LosslessRegistry {
     private fun registry(): JSONObject? {
         val now = nowMs()
         cached?.let { if (now - cachedAt < CACHE_TTL_MS) return it }
+        if (now - failedAt < FAILURE_RETRY_MS) return cached
         return runCatching {
-            val text = URL("$GIST_URL?t=$now").let { url ->
-                (url.openConnection() as HttpURLConnection).run {
-                    connectTimeout = 8000
-                    readTimeout = 8000
-                    setRequestProperty("User-Agent", "SpotiFLAC-Agent")
-                    inputStream.bufferedReader().use { it.readText() }.also { disconnect() }
-                }
+            val conn = URL("$GIST_URL?t=$now").openConnection() as HttpURLConnection
+            val text = try {
+                conn.connectTimeout = 8000
+                conn.readTimeout = 8000
+                conn.setRequestProperty("User-Agent", "SpotiFLAC-Agent")
+                if (conn.responseCode !in 200..299) throw java.io.IOException("HTTP ${conn.responseCode}")
+                conn.inputStream.bufferedReader().use { it.readText() }
+            } finally {
+                conn.disconnect()
             }
             val json = JSONObject(decrypt(text))
             cached = json
             cachedAt = now
             json
-        }.onFailure { Log.d(TAG, "registry refresh failed, using defaults: ${it.message}") }
-            .getOrNull() ?: cached
+        }.onFailure {
+            // Remember the miss: a resolve calls this several times, and each retry
+            // would spend up to 16 s of the play-time lossless budget on timeouts.
+            failedAt = now
+            Log.d(TAG, "registry refresh failed, using defaults: ${it.message}")
+        }.getOrNull() ?: cached
     }
 
     private fun decrypt(b64Input: String): String {

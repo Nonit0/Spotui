@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -15,12 +17,27 @@ android {
         applicationId = "com.music.spotui"
         minSdk = 26
         targetSdk = 34
-        versionCode = 14
-        versionName = "1.4"
+        // Must exceed every published build: 1.5 shipped as versionCode 14 ("1.4").
+        versionCode = 16
+        versionName = "1.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
+        }
+    }
+
+    // One fixed release key, kept out of git in keystore.properties (storeFile,
+    // storePassword, keyAlias, keyPassword). Releases used to be signed with whatever
+    // debug key the building machine had, so 1.4 and 1.5 could not upgrade each other.
+    val releaseKeys = rootProject.file("keystore.properties").takeIf { it.exists() }
+        ?.let { f -> Properties().apply { f.inputStream().use { load(it) } } }
+    signingConfigs {
+        if (releaseKeys != null) create("release") {
+            storeFile = rootProject.file(releaseKeys.getProperty("storeFile"))
+            storePassword = releaseKeys.getProperty("storePassword")
+            keyAlias = releaseKeys.getProperty("keyAlias")
+            keyPassword = releaseKeys.getProperty("keyPassword")
         }
     }
 
@@ -31,9 +48,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // Sign release with the debug key so the APK is installable via sideload
-            // and upgrades the existing (debug-signed) install in place.
-            signingConfig = signingConfigs.getByName("debug")
+            // Falls back to this machine's debug key without keystore.properties; such a
+            // build only upgrades installs signed by that same machine.
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }
     compileOptions {
@@ -61,7 +78,6 @@ kotlin {
 dependencies {
 
     implementation("androidx.core:core-ktx:1.13.1")
-    implementation("androidx.compose.runtime:runtime-livedata:1.6.8")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.2")
     implementation("androidx.activity:activity-compose:1.9.0")
     implementation(platform("androidx.compose:compose-bom:2024.06.00"))
@@ -89,9 +105,6 @@ dependencies {
 
     //coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
-
-    //await
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
 
     //glide
     implementation("com.github.bumptech.glide:compose:1.0.0-beta01")

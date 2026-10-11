@@ -82,12 +82,12 @@ fun SongOptionsSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var liked by remember { mutableStateOf(isSongLiked(context, song.id.toString())) }
     var downloaded by remember { mutableStateOf(com.music.spotui.data.preferences.isDownloaded(context, song.id.toString())) }
-    var downloadingNow by remember { mutableStateOf(com.music.spotui.di.SongPlayer.isDownloading(song.url)) }
-    var downloadPct by remember { mutableStateOf(com.music.spotui.di.SongPlayer.downloadProgress(song.url)) }
+    var downloadingNow by remember { mutableStateOf(com.music.spotui.di.Downloads.isDownloading(song.url)) }
+    var downloadPct by remember { mutableStateOf(com.music.spotui.di.Downloads.downloadProgress(song.url)) }
     // Poll progress while a download is active so the menu row shows live "Downloading… NN%".
     androidx.compose.runtime.LaunchedEffect(downloadingNow) {
         while (downloadingNow) {
-            downloadPct = com.music.spotui.di.SongPlayer.downloadProgress(song.url)
+            downloadPct = com.music.spotui.di.Downloads.downloadProgress(song.url)
             kotlinx.coroutines.delay(300)
         }
     }
@@ -172,7 +172,7 @@ fun SongOptionsSheet(
                     downloaded = false
                 } else {
                     downloadingNow = true
-                    com.music.spotui.di.SongPlayer.downloadSong(song, context) { ok ->
+                    com.music.spotui.di.Downloads.downloadSong(song, context) { ok ->
                         downloadingNow = false
                         downloaded = ok
                     }

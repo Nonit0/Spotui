@@ -136,14 +136,6 @@ fun SumUpSearchScreen(
     // separate type sections — matches how most music apps present search.
     val mixed = remember(results) { mixSearchResults(results) }
 
-    // Warm the stream cache for the top search hits so tapping a result plays
-    // (near-)instantly instead of resolving YouTube on the tap.
-    LaunchedEffect(searchedList) {
-        if (searchedList.isNotEmpty()) {
-            SongPlayer.prefetchList(searchedList.map { it.url }, context, count = 3)
-        }
-    }
-
     LazyColumn(
         contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 130.dp),
         modifier = Modifier

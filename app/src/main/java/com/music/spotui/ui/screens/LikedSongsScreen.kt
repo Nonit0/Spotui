@@ -34,7 +34,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -77,11 +76,6 @@ fun LikedSongsScreen(navController: NavController) {
 
     val songs = (songsResp as? Response.Success)?.data.orEmpty()
 
-    LaunchedEffect(songs) {
-        if (songs.isNotEmpty()) {
-            SongPlayer.prefetchList(songs.map { it.url }, context)
-        }
-    }
 
     var menuSong by remember { mutableStateOf<com.music.spotui.data.entity.SongsModel?>(null) }
     menuSong?.let { sel ->
@@ -207,8 +201,9 @@ fun LikedSongsScreen(navController: NavController) {
                                 .padding(20.dp, 0.dp)
                         ) {
                             // Download all liked songs for offline playback.
+                            var askDownloadAll by remember { mutableStateOf(false) }
                             var likedDownloaded by remember(songs) {
-                                mutableStateOf(songs.isNotEmpty() && SongPlayer.allDownloaded(songs, context))
+                                mutableStateOf(songs.isNotEmpty() && com.music.spotui.di.Downloads.allDownloaded(songs, context))
                             }
                             if (songs.isNotEmpty()) {
                                 Icon(
@@ -221,17 +216,20 @@ fun LikedSongsScreen(navController: NavController) {
                                             interactionSource = remember { MutableInteractionSource() },
                                             indication = null,
                                         ) {
-                                            if (!likedDownloaded) {
-                                                SongPlayer.downloadAll(songs, context)
-                                                android.widget.Toast.makeText(
-                                                    context,
-                                                    "Downloading ${songs.size} tracks…",
-                                                    android.widget.Toast.LENGTH_SHORT,
-                                                ).show()
-                                            }
+                                            if (!likedDownloaded) askDownloadAll = true
                                         },
                                     contentDescription = "Download liked songs",
                                 )
+                                if (askDownloadAll) {
+                                    com.music.spotui.ui.components.ConfirmDownloadAllDialog(
+                                        songs.size, onDismiss = { askDownloadAll = false },
+                                    ) {
+                                        com.music.spotui.di.Downloads.downloadAll(songs, context)
+                                        android.widget.Toast.makeText(
+                                            context, "Downloading ${songs.size} tracks…", android.widget.Toast.LENGTH_SHORT,
+                                        ).show()
+                                    }
+                                }
                                 Spacer(modifier = Modifier.width(16.dp))
                                 // Shuffle-play: start liked songs in random order.
                                 Icon(

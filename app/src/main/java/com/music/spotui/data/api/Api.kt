@@ -49,6 +49,15 @@ class Api @Inject constructor(
         /** Sentinel id for the special pinned "Downloaded" library entry. */
         const val DOWNLOADS_ID = "downloaded-offline"
 
+        /** Pinned "Downloaded" shortcut to the offline tracks, like Spotify's library. */
+        val DOWNLOADED_ENTRY = com.music.spotui.data.entity.LibraryEntry(
+            spotifyId = DOWNLOADS_ID,
+            name = "Downloaded",
+            subtitle = "Available offline",
+            coverUri = "",
+            isPlaylist = true,
+        )
+
         @Volatile var albums: List<AlbumsModel>? = null
         @Volatile var artists: List<ArtistsModel>? = null
         @Volatile var home: HomeFeedModel? = null
@@ -64,7 +73,9 @@ class Api @Inject constructor(
         val singer = artists.joinToString(", ") { it.name }
         val cover = album?.images?.firstOrNull()?.url ?: ""
         return SongsModel(
-            id = stableId("track:$id"),
+            // Local files in a playlist have no track id; keyed by name they would all
+            // share one id, which crashed lists keyed by id (#88, #91).
+            id = stableId(if (id.isNotBlank()) "track:$id" else "local:$name|$singer"),
             title = name.take(128),
             album = album?.name ?: "",
             singer = singer,
@@ -530,42 +541,13 @@ class Api @Inject constructor(
         if (!SpotifyTokenProvider.ensureToken(context)) {
             emit(Response.Error("Spotify not authenticated — set sp_dc cookie")); return@flow
         }
-        Spotify.playlistTracks(playlistId, limit = 100).fold(
-            onSuccess = { first ->
-                val songs = first.items.mapNotNull { it.track?.toSongModel() }.toMutableList()
-                // Show the first page right away, then keep paging until the
-                // playlist's full track count is loaded.
-                emit(Response.Success(songs.toList()))
-                var offset = first.items.size
-                while (offset < first.total && first.items.isNotEmpty()) {
-                    val page = Spotify.playlistTracks(playlistId, limit = 100, offset = offset).getOrNull() ?: break
-                    if (page.items.isEmpty()) break
-                    songs += page.items.mapNotNull { it.track?.toSongModel() }
-                    offset += page.items.size
-                    emit(Response.Success(songs.toList()))
-                }
-            },
-            onFailure = { Log.e("Api", "getPlaylistSongs failed", it); emit(Response.Error(it.message ?: "error")) },
-        )
-    }
-
-    /**
-     * Follows a paged endpoint until every item is fetched, so libraries with
-     * more than one page (50+ playlists/albums) load completely.
-     */
-    private suspend fun <T> fetchAllPages(
-        fetch: suspend (offset: Int) -> kotlin.Result<com.metrolist.spotify.models.SpotifyPaging<T>>,
-    ): List<T> {
-        val first = fetch(0).getOrNull() ?: return emptyList()
-        val items = first.items.toMutableList()
-        var offset = first.items.size
-        while (offset < first.total && first.items.isNotEmpty()) {
-            val page = fetch(offset).getOrNull() ?: break
-            if (page.items.isEmpty()) break
-            items += page.items
-            offset += page.items.size
-        }
-        return items
+        // First page right away, then keep paging until the whole playlist is loaded.
+        var loaded = false
+        fetchAllPages(onPage = { items, _ ->
+            loaded = true
+            emit(Response.Success(items.mapNotNull { it.track?.toSongModel() }))
+        }) { offset -> Spotify.playlistTracks(playlistId, limit = 100, offset = offset) }
+        if (!loaded) emit(Response.Error("Couldn't load this playlist"))
     }
 
     /**
@@ -606,15 +588,7 @@ class Api @Inject constructor(
             coverUri = "https://misc.scdn.co/liked-songs/liked-songs-640.png",
             isPlaylist = true,
         )
-        // Pin a "Downloaded" shortcut to the offline tracks, like Spotify's library.
-        val downloaded = com.music.spotui.data.entity.LibraryEntry(
-            spotifyId = DOWNLOADS_ID,
-            name = "Downloaded",
-            subtitle = "Available offline",
-            coverUri = "",
-            isPlaylist = true,
-        )
-        val merged = listOf(liked, downloaded) + playlists + albums
+        val merged = listOf(liked, DOWNLOADED_ENTRY) + playlists + albums
         HomeCache.library = merged
         emit(Response.Success(merged))
     }
@@ -643,27 +617,18 @@ class Api @Inject constructor(
         if (!SpotifyTokenProvider.ensureToken(context)) {
             emit(Response.Error("Spotify not authenticated")); return@flow
         }
-        Spotify.likedSongs(limit = 50).fold(
-            onSuccess = { first ->
-                val models = first.items.map { it.track.toSongModel() }.toMutableList()
-                // Seed the local like registry so hearts/menus show these as liked
-                // and unliking them can be mirrored back to Spotify.
-                models.forEach { com.music.spotui.data.preferences.addLikedSongId(context, it.id.toString()) }
-                // First page immediately, then page through the whole library.
-                emit(Response.Success(models.toList()))
-                var offset = first.items.size
-                while (offset < first.total && first.items.isNotEmpty()) {
-                    val page = Spotify.likedSongs(limit = 50, offset = offset).getOrNull() ?: break
-                    if (page.items.isEmpty()) break
-                    val pageModels = page.items.map { it.track.toSongModel() }
-                    pageModels.forEach { com.music.spotui.data.preferences.addLikedSongId(context, it.id.toString()) }
-                    models += pageModels
-                    offset += page.items.size
-                    emit(Response.Success(models.toList()))
-                }
-            },
-            onFailure = { Log.e("Api", "getLikedSongs failed", it); emit(Response.Error(it.message ?: "error")) },
-        )
+        // First page right away, then page through the whole library. The ids also
+        // drive the local hearts, so unlikes made elsewhere on Spotify show up here.
+        var loaded = false
+        fetchAllPages(onPage = { items, total ->
+            loaded = true
+            val models = items.map { it.track.toSongModel() }
+            com.music.spotui.data.preferences.syncSpotifyLikedSongIds(
+                context, models.mapTo(HashSet()) { it.id.toString() }, complete = items.size >= total,
+            )
+            emit(Response.Success(models))
+        }) { offset -> Spotify.likedSongs(limit = 50, offset = offset) }
+        if (!loaded) emit(Response.Error("Couldn't load Liked Songs"))
     }
 
     /** The logged-in user's account (name, email, avatar, plan) for settings. */
@@ -747,4 +712,27 @@ class Api @Inject constructor(
             ?: nameMatches.firstOrNull()
             ?: candidates.first()
     }
+}
+
+/**
+ * Follows a paged endpoint until every item is fetched, so libraries with more than
+ * one page load completely. [onPage] sees the items so far after each page. A failed
+ * page after the first ends the walk with what was loaded.
+ */
+internal suspend fun <T> fetchAllPages(
+    onPage: suspend (itemsSoFar: List<T>, total: Int) -> Unit = { _, _ -> },
+    fetch: suspend (offset: Int) -> kotlin.Result<com.metrolist.spotify.models.SpotifyPaging<T>>,
+): List<T> {
+    val first = fetch(0).getOrNull() ?: return emptyList()
+    val items = first.items.toMutableList()
+    onPage(items, first.total)
+    var offset = first.items.size
+    while (offset < first.total && first.items.isNotEmpty()) {
+        val page = fetch(offset).getOrNull() ?: break
+        if (page.items.isEmpty()) break
+        items += page.items
+        offset += page.items.size
+        onPage(items, first.total)
+    }
+    return items
 }

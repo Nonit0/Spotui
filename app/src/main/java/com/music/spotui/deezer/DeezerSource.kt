@@ -26,7 +26,13 @@ object DeezerSource {
 
     sealed interface Result {
         /** [uri] is a `deezer://` URI; [mimeFlac] hints ExoPlayer for FLAC streams. */
-        data class Success(val uri: String, val mimeFlac: Boolean, val qualityLabel: String) : Result
+        data class Success(
+            val uri: String,
+            val mimeFlac: Boolean,
+            val qualityLabel: String,
+            /** MP3 128 (free account): below YouTube's ~160 kbps Opus at High. */
+            val lowBitrate: Boolean = false,
+        ) : Result
         data object NotLoggedIn : Result
         data object NotFound : Result
         data class Error(val message: String) : Result
@@ -42,6 +48,7 @@ object DeezerSource {
         val trackId: String,
         val isFlac: Boolean,
         val qualityLabel: String,
+        val lowBitrate: Boolean,
     )
 
     /** Whether Deezer is configured (ARL present) — cheap, no network. */
@@ -94,6 +101,7 @@ object DeezerSource {
                     trackId = tokens.id,
                     isFlac = q == DeezerSession.QUALITY_FLAC,
                     qualityLabel = qualityLabel(q),
+                    lowBitrate = q != DeezerSession.QUALITY_FLAC && q != DeezerSession.QUALITY_MP3_320,
                 )
             }
         }
@@ -115,7 +123,7 @@ object DeezerSource {
             "&id=${raw.trackId}" +
             "&enc=${if (raw.encrypted) 1 else 0}" +
             "&fmt=${if (raw.isFlac) "flac" else "mp3"}"
-        return Result.Success(uri = uri, mimeFlac = raw.isFlac, qualityLabel = raw.qualityLabel)
+        return Result.Success(uri = uri, mimeFlac = raw.isFlac, qualityLabel = raw.qualityLabel, lowBitrate = raw.lowBitrate)
     }
 
     private fun qualityLabel(q: Int): String = when (q) {

@@ -48,6 +48,14 @@ class LibraryViewModel @Inject constructor(
 
     fun load() = viewModelScope.launch(Dispatchers.IO) {
         repository.provideLibrary().collect { response ->
+            // Offline: keep the saved library instead of replacing it with a
+            // spinner/error, so downloads stay reachable after a restart (#51).
+            if (response !is Response.Success && _entries.value is Response.Success) return@collect
+            // Nothing saved yet and no network: offer just the downloads (not cached).
+            if (response is Response.Error) {
+                _entries.value = Response.Success(listOf(com.music.spotui.data.api.Api.DOWNLOADED_ENTRY))
+                return@collect
+            }
             _entries.value = response
             if (response is Response.Success) cacheLibraryEntries(context, response.data)
         }

@@ -364,3 +364,24 @@ fun Snackbar(showMessage : String) {
         )
     }
 }
+
+/**
+ * Asks before downloading a whole list: the download-all icon is small and shows
+ * up only once the list has loaded, so a stray tap used to start dozens of downloads.
+ */
+@Composable
+fun ConfirmDownloadAllDialog(count: Int, onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { androidx.compose.material3.Text("Download $count tracks?") },
+        text = { androidx.compose.material3.Text("They are saved for offline playback. You can cancel from Downloads.") },
+        confirmButton = {
+            androidx.compose.material3.TextButton(onClick = { onDismiss(); onConfirm() }) {
+                androidx.compose.material3.Text("Download")
+            }
+        },
+        dismissButton = {
+            androidx.compose.material3.TextButton(onClick = onDismiss) { androidx.compose.material3.Text("Cancel") }
+        },
+    )
+}

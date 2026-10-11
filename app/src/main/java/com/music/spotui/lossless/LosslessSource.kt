@@ -16,13 +16,12 @@ import java.net.URLEncoder
  *
  * Providers are tried in priority order and each fails gracefully (a down or
  * account-limited backend just falls through to the next, then to YouTube):
- *   1. Tidal  — Spotify→Tidal id (Odesli) → `/track/?id=` → BTS manifest FLAC url
+ *   1. Tidal  — Spotify→Tidal id (the backend's own search) → `/track/?id=` → FLAC url
  *   2. Amazon — `/api/resolve/spotify/{id}` (self-resolving)   [often dormant]
- *   3. Qobuz  — Spotify→Qobuz id (Odesli) → `/api/track/{id}`  [often dormant]
  *
- * Amazon/Qobuz are frequently down or account-limited; they're kept in the chain
- * so coverage improves automatically when those servers rotate back up. Endpoint
- * lists come from [LosslessRegistry] so they follow the community's rotations.
+ * Odesli (song.link), which used to map Spotify ids to Tidal/Qobuz ids, closed its
+ * public API (401 PUBLIC_API_ACCESS_DEPRECATED), so Qobuz (Odesli-only ids) is gone.
+ * Endpoint lists come from [LosslessRegistry] so they follow the community's rotations.
  */
 object LosslessSource {
 
@@ -39,28 +38,32 @@ object LosslessSource {
         data class Error(val message: String) : Result
     }
 
-    suspend fun resolve(context: Context, spotifyId: String, preferHiRes: Boolean = true): Result =
+    /** Track details from the play site; [title] blank means "ask Spotify". */
+    data class TrackInfo(val title: String = "", val artist: String = "", val durationSec: Int = 0, val isrc: String = "")
+
+    suspend fun resolve(
+        context: Context,
+        spotifyId: String,
+        info: TrackInfo = TrackInfo(),
+        preferHiRes: Boolean = true,
+    ): Result =
         withContext(Dispatchers.IO) {
-            val ids = odesliIds(spotifyId)
             // 1. Tidal — SpotiFLAC's gated backend (if verified) then direct endpoints
-            ids["tidal"]?.let { tid ->
-                tidalFlac(context, tid, preferHiRes)?.let { return@withContext Result.Success(it) }
-            }
+            tidalHit(context, spotifyId, info)?.let { hit ->
+                tidalFlac(context, hit, preferHiRes)?.let { return@withContext Result.Success(it) }
+            } ?: Log.d(TAG, "no Tidal match for spotify:$spotifyId")
             // 2. Amazon (self-resolves from the Spotify id; usually dormant)
             amazonFlac(spotifyId)?.let { return@withContext Result.Success(it) }
-            // 3. Qobuz (needs a numeric Qobuz id; usually dormant)
-            ids["qobuz"]?.let { qid ->
-                qobuzFlac(qid, preferHiRes)?.let { return@withContext Result.Success(it) }
-            }
             Result.NotFound
         }
 
     // ── Provider: Tidal ───────────────────────────────────────────────────────
-    private fun tidalFlac(context: Context, tidalId: String, preferHiRes: Boolean): FlacTrack? {
+    private fun tidalFlac(context: Context, hit: TidalHit, preferHiRes: Boolean): FlacTrack? {
+        val tidalId = hit.id
         // SpotiFLAC's own gated backend first (if the user completed verification) —
         // it's their most reliable source. Falls through to the direct API-key ones.
         if (SpotiflacGated.hasSession(context)) {
-            SpotiflacGated.tidalFlacUrl(context, tidalId, "LOSSLESS")?.let {
+            SpotiflacGated.tidalFlacUrl(context, tidalId, "LOSSLESS")?.takeIf { isFullTrack(it, hit.durationSec) }?.let {
                 Log.d(TAG, "SpotiFLAC gated FLAC for tidal:$tidalId")
                 return FlacTrack(it, "SpotiFLAC", "16")
             }
@@ -86,7 +89,7 @@ object LosslessSource {
                     val bits = data.optInt("bitDepth", 16).let { if (it in 8..32) it else 16 }
                     FlacTrack(flacUrl, "Tidal", bits.toString())
                 }.getOrNull()
-                if (track != null) {
+                if (track != null && isFullTrack(track.url, hit.durationSec)) {
                     Log.d(TAG, "Tidal ${track.quality}-bit via $endpoint (tidal:$tidalId)")
                     return track
                 }
@@ -122,56 +125,90 @@ object LosslessSource {
         return null
     }
 
-    // ── Provider: Qobuz (needs Qobuz id; defensive parsing) ───────────────────
-    private fun qobuzFlac(qobuzId: String, preferHiRes: Boolean): FlacTrack? {
-        val qualities = if (preferHiRes) listOf("27", "7") else listOf("7") // 27=hi-res, 7=CD lossless
-        for (endpoint in LosslessRegistry.qobuzEndpoints()) {
-            for (q in qualities) {
-                val track = runCatching {
-                    val body = get("$endpoint/api/track/$qobuzId?quality=$q", keyHeader())
-                    val json = JSONObject(body)
-                    val data = json.optJSONObject("data") ?: json
-                    val url = firstNonBlank(
-                        data.optString("url"), data.optString("streaming_url"), data.optString("download_url"),
+    // ── Shared helpers ────────────────────────────────────────────────────────
+
+    internal data class TidalHit(
+        val id: String, val title: String, val artist: String, val durationSec: Int, val isrc: String,
+    )
+
+    /** Spotify id → Tidal track via the Tidal backend's search, matched against the track's details. */
+    private suspend fun tidalHit(context: Context, spotifyId: String, known: TrackInfo): TidalHit? {
+        // The play site usually knows the track; Spotify's REST track lookup is often
+        // rate limited (429) for the web token, so it is only the fallback.
+        val info = known.takeIf { it.title.isNotBlank() && it.artist.isNotBlank() } ?: run {
+            if (!com.music.spotui.data.api.SpotifyTokenProvider.ensureToken(context)) return null
+            val t = com.metrolist.spotify.Spotify.track(spotifyId).getOrNull() ?: return null
+            TrackInfo(t.name, t.artists.firstOrNull()?.name.orEmpty(), t.durationMs / 1000, t.isrc.orEmpty())
+        }
+        val q = URLEncoder.encode("${info.title} ${info.artist}", "UTF-8")
+        for (endpoint in LosslessRegistry.tidalEndpoints()) {
+            val hits = runCatching {
+                val items = JSONObject(get("$endpoint/search/?s=$q", keyHeader()))
+                    .optJSONObject("data")?.optJSONArray("items") ?: return@runCatching emptyList()
+                (0 until items.length()).mapNotNull { i ->
+                    val o = items.optJSONObject(i) ?: return@mapNotNull null
+                    TidalHit(
+                        id = o.optString("id"), title = o.optString("title"),
+                        artist = o.optJSONObject("artist")?.optString("name").orEmpty(),
+                        durationSec = o.optInt("duration"), isrc = o.optString("isrc"),
                     )
-                    if (url.isBlank() || !url.startsWith("http")) return@runCatching null
-                    if (!url.contains("flac", true) && !url.contains("audio", true)) return@runCatching null
-                    val bits = if (q == "27") "24" else "16"
-                    FlacTrack(url, "Qobuz", bits)
-                }.getOrNull()
-                if (track != null) {
-                    Log.d(TAG, "Qobuz ${track.quality}-bit via $endpoint (qobuz:$qobuzId)")
-                    return track
                 }
-            }
+            }.getOrDefault(emptyList())
+            pickTidalHit(hits, info.isrc, info.title, info.artist, info.durationSec)?.let { return it }
         }
         return null
     }
 
-    // ── Shared helpers ────────────────────────────────────────────────────────
-
-    /** One Odesli call → provider track ids (tidal / qobuz) for a Spotify track. */
-    private fun odesliIds(spotifyId: String): Map<String, String> = runCatching {
-        val url = "https://api.song.link/v1-alpha.1/links?url=" +
-            URLEncoder.encode("https://open.spotify.com/track/$spotifyId", "UTF-8")
-        val json = JSONObject(get(url, emptyMap()))
-        val out = HashMap<String, String>()
-        val links = json.optJSONObject("linksByPlatform")
-        links?.optJSONObject("tidal")?.optString("entityUniqueId")?.substringAfter("::")
-            ?.takeIf { it.isNotBlank() }?.let { out["tidal"] = it }
-        links?.optJSONObject("qobuz")?.optString("entityUniqueId")?.substringAfter("::")
-            ?.takeIf { it.isNotBlank() }?.let { out["qobuz"] = it }
-        // Fallback: scan entity keys (TIDAL_SONG:: / QOBUZ_SONG::).
-        json.optJSONObject("entitiesByUniqueId")?.let { ents ->
-            ents.keys().forEach { k ->
-                when {
-                    k.startsWith("TIDAL_SONG::") -> out.putIfAbsent("tidal", k.substringAfter("::"))
-                    k.startsWith("QOBUZ_SONG::") -> out.putIfAbsent("qobuz", k.substringAfter("::"))
-                }
-            }
+    /**
+     * Same recording by ISRC if Spotify has one; otherwise same title and artist with
+     * a length within 3 s, so a live version or a cover is never streamed instead.
+     */
+    internal fun pickTidalHit(hits: List<TidalHit>, isrc: String, title: String, artist: String, durationSec: Int): TidalHit? {
+        fun key(s: String) = s.lowercase().filter { it.isLetterOrDigit() }
+        hits.firstOrNull { isrc.isNotBlank() && it.isrc.equals(isrc, ignoreCase = true) && it.id.isNotBlank() }?.let { return it }
+        return hits.firstOrNull {
+            it.id.isNotBlank() && key(it.title) == key(title) && key(it.artist) == key(artist) &&
+                (durationSec <= 0 || kotlin.math.abs(it.durationSec - durationSec) <= 3)
         }
-        out
-    }.getOrDefault(emptyMap())
+    }
+
+    /**
+     * The backends sometimes hand out a 30 s preview instead of the song; played as
+     * the real track it ends early and the queue skips ahead every 30 s. A FLAC file
+     * states its length in STREAMINFO (first 42 bytes), so one tiny range read tells.
+     */
+    private fun isFullTrack(url: String, expectedSec: Int): Boolean {
+        if (expectedSec <= 0) return true
+        val seconds = runCatching {
+            val conn = (URL(url).openConnection() as HttpURLConnection).apply {
+                connectTimeout = 8_000
+                readTimeout = 8_000
+                setRequestProperty("User-Agent", USER_AGENT)
+                setRequestProperty("Range", "bytes=0-41")
+            }
+            val head = try {
+                conn.inputStream.use { it.readNBytes(42) }
+            } finally {
+                conn.disconnect()
+            }
+            flacDurationSec(head)
+        }.getOrNull() ?: return true // not a plain FLAC header: can't tell, keep it
+        val full = seconds >= expectedSec - 5
+        if (!full) Log.d(TAG, "rejected ${seconds}s preview (expected ${expectedSec}s)")
+        return full
+    }
+
+    /** Length from a FLAC STREAMINFO header, or null if [head] is not one. */
+    internal fun flacDurationSec(head: ByteArray): Int? {
+        if (head.size < 26 || String(head, 0, 4, Charsets.US_ASCII) != "fLaC") return null
+        // Bytes 18..25: sample rate (20 bits), channels (3), bits/sample (5), total samples (36).
+        var bits = 0L
+        for (i in 18..25) bits = (bits shl 8) or (head[i].toLong() and 0xFF)
+        val sampleRate = (bits ushr 44).toInt()
+        val totalSamples = bits and 0xFFFFFFFFFL
+        if (sampleRate <= 0 || totalSamples <= 0) return null
+        return (totalSamples / sampleRate).toInt()
+    }
 
     private fun decodeBtsManifest(b64: String): JSONObject? {
         if (b64.isBlank()) return null

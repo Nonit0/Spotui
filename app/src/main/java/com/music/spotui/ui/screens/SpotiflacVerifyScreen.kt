@@ -1,117 +1,190 @@
 package com.music.spotui.ui.screens
 
 import android.annotation.SuppressLint
-import android.os.Handler
-import android.os.Looper
 import android.webkit.CookieManager
-import android.webkit.JavascriptInterface
-import android.webkit.WebChromeClient
-import android.webkit.WebSettings
+import android.webkit.WebResourceRequest
 import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.navigation.NavController
+import com.music.spotui.data.preferences.getSpotiflacSession
 import com.music.spotui.data.preferences.saveSpotiflacSession
 import com.music.spotui.lossless.LosslessRegistry
 import com.music.spotui.ui.navigation.Routes
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
+import java.net.URLEncoder
 
 /**
- * EXPERIMENTAL (path 1a). Obtains a signed session from SpotiFLAC's gated backend
- * by having the user solve the Cloudflare Turnstile **themselves** in this WebView
- * — no auto-solving. The page is loaded with base URL [LosslessRegistry.SESSION_BASE]
- * so it behaves as same-origin with that host: fetches avoid CORS, the Turnstile
- * widget passes its domain check, and the resulting cf_clearance cookie applies to
- * the same WebView. Every step is logged on-screen and to logcat (tag SpotiflacVerify)
- * so the flow can be debugged on-device.
- *
- * Stage 1 captures session_id + session_secret. Downloading via the signed
- * `/api/dl` endpoints is wired only after this is confirmed working on a device.
+ * Gets a signed SpotiFLAC community session, the way the official client does:
+ * bootstrap → the service's own hosted challenge page (the user solves Cloudflare
+ * Turnstile there) → redirect to [CALLBACK] with a grant → exchange the grant for a
+ * session. The app only loads the page and catches the redirect.
  */
-@SuppressLint("SetJavaScriptEnabled", "AddJavascriptInterface")
+@SuppressLint("SetJavaScriptEnabled")
 @Composable
 fun SpotiflacVerifyScreen(navController: NavController, next: String = "") {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var webView by remember { mutableStateOf<WebView?>(null) }
+    var message by remember { mutableStateOf("Loading verification…") }
+    var attempt by remember { mutableIntStateOf(0) }
+    var done by remember { mutableStateOf(false) }
+    val leave: () -> Unit = {
+        if (next == "home") {
+            navController.navigate(Routes.Home.route) {
+                popUpTo(Routes.MusicSource.route) { inclusive = true }
+            }
+        } else navController.popBackStack()
+    }
+    // Back must never trap the user here (onboarding has nothing behind this screen).
+    androidx.activity.compose.BackHandler(onBack = leave)
+    DisposableEffect(Unit) {
+        onDispose { webView?.destroy(); webView = null }
+    }
+
+    // Reused so a retry keeps the same install; the service binds the session to it.
+    val installId = remember {
+        getSpotiflacSession(context)?.installId?.takeIf { it.isNotBlank() }
+            ?: java.security.SecureRandom().let { r -> (1..16).joinToString("") { "%02x".format(r.nextInt(256)) } }
+    }
+    val state = remember(attempt) {
+        java.security.SecureRandom().let { r -> (1..16).joinToString("") { "%02x".format(r.nextInt(256)) } }
+    }
+
+    fun finish(grant: String) = scope.launch {
+        message = "Creating secure session…"
+        val ok = withContext(Dispatchers.IO) {
+            runCatching {
+                val body = JSONObject()
+                    .put("grant", grant).put("install_id", installId)
+                    .put("app_version", APP_VERSION).put("platform", PLATFORM)
+                val o = JSONObject(post("${LosslessRegistry.communityVerifyUrl()}/session/exchange", body.toString()))
+                val id = o.optString("session_id")
+                val secret = o.optString("session_secret")
+                require(id.isNotBlank() && secret.isNotBlank())
+                saveSpotiflacSession(context, id, secret, installId, o.optString("expires_at"))
+            }.isSuccess
+        }
+        if (ok) {
+            done = true
+            android.widget.Toast.makeText(context, "SpotiFLAC session captured", android.widget.Toast.LENGTH_LONG).show()
+            leave()
+        } else {
+            message = "Could not finish verification. Tap Retry or Skip for now."
+        }
+    }
+
+    LaunchedEffect(attempt) {
+        message = "Loading verification…"
+        val challenge = withContext(Dispatchers.IO) {
+            runCatching {
+                val base = LosslessRegistry.communityVerifyUrl()
+                val url = "$base/bootstrap?install_id=$installId&app_version=$APP_VERSION&platform=$PLATFORM"
+                JSONObject(get(url)).optString("challenge_url").takeIf { it.startsWith("https://") }
+            }.getOrNull()
+        }
+        if (challenge == null) {
+            message = "Could not start verification. Tap Retry or Skip for now."
+            return@LaunchedEffect
+        }
+        message = ""
+        webView?.loadUrl("$challenge&cb=" + URLEncoder.encode("$CALLBACK?state=$state", "UTF-8"))
+        // Never leave the user on a page that silently stalled.
+        delay(180_000)
+        if (!done) message = "Verification timed out. Tap Retry or Skip for now."
+    }
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         AndroidView(
-            modifier = Modifier.fillMaxSize().statusBarsPadding().padding(top = 40.dp),
+            modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()
+                .padding(top = 40.dp, bottom = 56.dp),
             factory = { ctx ->
                 CookieManager.getInstance().setAcceptCookie(true)
                 WebView(ctx).apply {
+                    webView = this
+                    layoutParams = android.view.ViewGroup.LayoutParams(
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                    )
                     CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = true
-                    settings.databaseEnabled = true
-                    settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
-                    webChromeClient = WebChromeClient()
-
-                    addJavascriptInterface(object {
-                        @JavascriptInterface
-                        fun log(msg: String) {
-                            android.util.Log.d("SpotiflacVerify", msg)
-                        }
-
-                        @JavascriptInterface
-                        fun onSession(json: String) {
-                            runCatching {
-                                val o = JSONObject(json)
-                                saveSpotiflacSession(
-                                    context,
-                                    sessionId = o.optString("session_id"),
-                                    sessionSecret = o.optString("session_secret"),
-                                    installId = o.optString("install_id"),
-                                    expiresAt = o.optString("expires_at"),
-                                )
+                    webViewClient = object : WebViewClient() {
+                        override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                            val uri = request.url
+                            if (!uri.toString().startsWith(CALLBACK)) return false
+                            val grant = uri.getQueryParameter("grant").orEmpty()
+                            if (uri.getQueryParameter("state") != state || grant.isBlank()) {
+                                message = "Verification was rejected. Tap Retry or Skip for now."
+                            } else {
+                                finish(grant)
                             }
-                            Handler(Looper.getMainLooper()).post {
-                                android.widget.Toast.makeText(
-                                    context, "SpotiFLAC session captured", android.widget.Toast.LENGTH_LONG,
-                                ).show()
-                                // Onboarding (Spotify → music source → SpotiFLAC) lands Home;
-                                // reached from Settings we just return where we came from.
-                                if (next == "home") {
-                                    navController.navigate(Routes.Home.route) {
-                                        popUpTo(Routes.MusicSource.route) { inclusive = true }
-                                    }
-                                } else {
-                                    navController.popBackStack()
-                                }
-                            }
+                            return true
                         }
-                    }, "Android")
-
-                    val html = ENGINE_HTML
-                        .replace("__BASE__", LosslessRegistry.SESSION_BASE)
-                        .replace("__APPV__", "4.8.5")
-                        .replace("__PLAT__", "android")
-                    // base URL = session host → same-origin fetches + valid Turnstile domain.
-                    loadDataWithBaseURL(LosslessRegistry.SESSION_BASE, html, "text/html", "utf-8", null)
+                    }
                 }
             },
         )
+
+        if (message.isNotEmpty()) {
+            Text(
+                message,
+                color = Color.White,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.align(Alignment.Center).padding(24.dp),
+            )
+        }
+
+        Row(
+            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                .navigationBarsPadding().height(56.dp).background(Color.Black),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+        ) {
+            TextButton(onClick = { attempt++ }) { Text("Retry", color = Color.White) }
+            TextButton(onClick = leave) { Text("Skip for now", color = Color.White) }
+        }
 
         Box(
             modifier = Modifier.fillMaxWidth().statusBarsPadding().height(40.dp).background(Color.Black),
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                "SpotiFLAC verification (experimental)",
+                "SpotiFLAC verification",
                 color = Color(0xFF00C7B7),
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp,
@@ -120,78 +193,34 @@ fun SpotiflacVerifyScreen(navController: NavController, next: String = "") {
     }
 }
 
-// JS engine. Written with string concatenation (no template literals) so no `$`
-// collides with Kotlin. Placeholders __BASE__/__APPV__/__PLAT__ are substituted.
-private const val ENGINE_HTML = """
-<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1">
-<style>body{background:#0b0b0f;color:#ddd;font:13px monospace;padding:12px}
-#cf{margin:16px 0}#log div{padding:2px 0;border-bottom:1px solid #1a1a20}</style>
-<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
-</head><body>
-<h3 style="color:#00C7B7">Solve the check below to enable SpotiFLAC</h3>
-<div id="cf"></div>
-<div id="log"></div>
-<script>
-var BASE="__BASE__", APPV="__APPV__", PLAT="__PLAT__";
-function log(m){var d=document.createElement('div');d.textContent=m;document.getElementById('log').appendChild(d);
-  try{if(window.Android)Android.log(m);}catch(e){}}
-function rand(){var a=new Uint8Array(16);crypto.getRandomValues(a);
-  return Array.from(a).map(function(b){return ('0'+b.toString(16)).slice(-2)}).join('');}
-var installId = localStorage.getItem('sf_install')||rand();
-localStorage.setItem('sf_install', installId);
+// Must match the signing in SpotiflacGated: the session is bound to both.
+private const val APP_VERSION = "4.8.5"
+private const val PLATFORM = "android"
+private const val CALLBACK = "spotiflac://session-grant"
 
-async function boot(){
-  try{
-    log('bootstrap...');
-    var r=await fetch(BASE+'/bootstrap?install_id='+installId+'&app_version='+APPV,{headers:{'Accept':'application/json'}});
-    log('bootstrap HTTP '+r.status);
-    var d=await r.json();
-    log('bootstrap: '+JSON.stringify(d).slice(0,240));
-    if(d.session_id && d.session_secret){ done(d); return; }
-    var sitekey=d.sitekey||d.turnstile_sitekey||d.turnstile_site_key;
-    window._challengeId=d.challenge_id||'';
-    if(!sitekey){
-      var au=d.auth_url||d.challenge_url;
-      if(au){ log('navigating to challenge page...'); location.href=au; return; }
-      log('ERROR: no sitekey and no auth_url in bootstrap'); return;
+private fun get(url: String): String = request(url, null)
+
+private fun post(url: String, json: String): String = request(url, json)
+
+private fun request(url: String, json: String?): String {
+    val conn = (URL(url).openConnection() as HttpURLConnection).apply {
+        connectTimeout = 20_000
+        readTimeout = 20_000
+        setRequestProperty("Accept", "application/json")
+        if (json != null) {
+            requestMethod = "POST"
+            doOutput = true
+            setRequestProperty("Content-Type", "application/json")
+        }
     }
-    renderTurnstile(sitekey);
-  }catch(e){ log('bootstrap error: '+e); }
+    try {
+        if (json != null) conn.outputStream.use { it.write(json.toByteArray()) }
+        val code = conn.responseCode
+        val text = (if (code in 200..299) conn.inputStream else conn.errorStream)
+            ?.bufferedReader()?.use { it.readText() }.orEmpty()
+        if (code !in 200..299) throw java.io.IOException("HTTP $code")
+        return text
+    } finally {
+        conn.disconnect()
+    }
 }
-function renderTurnstile(sitekey){
-  if(!window.turnstile){ log('waiting for turnstile lib...'); setTimeout(function(){renderTurnstile(sitekey)},400); return; }
-  log('rendering Turnstile (sitekey '+sitekey.slice(0,10)+'...)');
-  turnstile.render('#cf',{ sitekey: sitekey, callback: function(token){ verify(token); } });
-}
-async function verify(token){
-  try{
-    log('verify (token '+token.slice(0,8)+'...)');
-    var r=await fetch(BASE+'/challenge/verify',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({challenge_id:window._challengeId, turnstile_token:token})});
-    log('verify HTTP '+r.status);
-    var d=await r.json();
-    log('verify: '+JSON.stringify(d).slice(0,240));
-    if(d.session_id && d.session_secret){ done(d); return; }
-    await exchange(d.grant||d.grant_token||'');
-  }catch(e){ log('verify error: '+e); }
-}
-async function exchange(grant){
-  try{
-    log('exchange...');
-    var r=await fetch(BASE+'/session/exchange',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({grant:grant, install_id:installId, app_version:APPV, platform:PLAT})});
-    log('exchange HTTP '+r.status);
-    var d=await r.json();
-    log('exchange: '+JSON.stringify(d).slice(0,160));
-    if(d.session_id && d.session_secret){ done(d); } else { log('ERROR: no session in exchange response'); }
-  }catch(e){ log('exchange error: '+e); }
-}
-function done(d){
-  log('SESSION OBTAINED ✓ ('+String(d.session_id).slice(0,8)+'...)');
-  try{ if(window.Android) Android.onSession(JSON.stringify({
-    session_id:d.session_id, session_secret:d.session_secret,
-    install_id:installId, expires_at:d.expires_at||d.expiresAt||'' })); }catch(e){ log('bridge error: '+e); }
-}
-window.addEventListener('load', function(){ setTimeout(boot, 400); });
-</script></body></html>
-"""

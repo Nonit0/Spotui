@@ -20,12 +20,18 @@ object SpotifyTokenProvider {
     private const val TAG = "SpotifyTokenProvider"
     private val mutex = Mutex()
     private var expiresAtMs: Long = 0L
+    // Each attempt costs 3 requests (one to the rate-limited GitHub API), so a failure
+    // is remembered briefly instead of being retried by every call on every screen.
+    private const val FAILURE_BACKOFF_MS = 30_000L
+    private var lastFailureAtMs: Long = 0L
 
-    suspend fun ensureToken(context: Context): Boolean = mutex.withLock {
+    /** [force] skips the cached token and the failure backoff (fresh login). */
+    suspend fun ensureToken(context: Context, force: Boolean = false): Boolean = mutex.withLock {
         val now = System.currentTimeMillis()
-        if (Spotify.accessToken != null && now < expiresAtMs - 60_000L) {
+        if (!force && Spotify.accessToken != null && now < expiresAtMs - 60_000L) {
             return@withLock true
         }
+        if (!force && now - lastFailureAtMs < FAILURE_BACKOFF_MS) return@withLock false
         val spDc = SpotifySession.spDc(context)
         if (spDc.isBlank()) {
             Log.w(TAG, "No sp_dc cookie set — Spotify data unavailable")
@@ -35,11 +41,13 @@ object SpotifyTokenProvider {
             onSuccess = { token ->
                 Spotify.accessToken = token.accessToken
                 expiresAtMs = token.accessTokenExpirationTimestampMs
+                lastFailureAtMs = 0L
                 Log.d(TAG, "Spotify token refreshed")
                 true
             },
             onFailure = {
                 Log.e(TAG, "Failed to fetch Spotify token", it)
+                lastFailureAtMs = now
                 false
             },
         )

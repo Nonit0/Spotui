@@ -80,7 +80,9 @@ class ChunkedDataSource(
             }
             chunkRemaining = 0L
         }
-        return C.RESULT_END_OF_INPUT
+        // Bytes are still owed: a fake end-of-input would end the track early, while an
+        // IO error lets the player re-resolve and resume from here.
+        throw java.io.IOException("stream stopped at $position with $bytesRemaining bytes left")
     }
 
     private fun closeChunk() {

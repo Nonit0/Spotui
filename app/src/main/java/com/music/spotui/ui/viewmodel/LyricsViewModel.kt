@@ -34,6 +34,8 @@ class LyricsViewModel @Inject constructor() : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             val lyrics = LyricsApi.fetch(title, artist, album, durationSec)
             withContext(Dispatchers.Main) {
+                // A skip during the fetch: don't show the previous song's lyrics.
+                if (loadedKey != key) return@withContext
                 _state.value = if (lyrics == null || lyrics.isEmpty) State.NotFound
                 else State.Loaded(lyrics)
             }

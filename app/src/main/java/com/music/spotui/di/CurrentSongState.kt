@@ -35,7 +35,10 @@ class CurrentSongState @Inject constructor() {
     private val _queue: MutableState<List<SongsModel>> = mutableStateOf(emptyList())
     val queue: State<List<SongsModel>> get() = _queue
 
-    fun updateQueue(songs: List<SongsModel>) {
+    fun updateQueue(queue: List<SongsModel>) {
+        // Playback finds the current track by id, and the queue screen keys rows by
+        // id, so a track listed twice (e.g. in a playlist) is queued once.
+        val songs = queue.distinctBy { it.id }
         _queue.value = songs
         // Seed the lossless resolver: map each track's play query → its Spotify id so
         // SongPlayer can resolve a FLAC stream from a play site that only has the query.
@@ -153,7 +156,9 @@ class CurrentSongState @Inject constructor() {
         // Warm the lyrics cache in the background so they're already loaded by the
         // time the user opens the player / scrolls to the lyrics card.
         if (playingState && title.isNotBlank()) {
-            com.music.spotui.data.api.LyricsApi.prefetch(title, singer, album)
+            // With the length, so a fallback match is checked against it before caching.
+            val durationSec = (_queue.value.firstOrNull { it.id == songId }?.durationMs ?: 0) / 1000
+            com.music.spotui.data.api.LyricsApi.prefetch(title, singer, album, durationSec)
             // Log the play into the local listening history (History & stats screen).
             com.music.spotui.data.preferences.addListeningHistory(
                 com.music.spotui.MyApplication.instance,
