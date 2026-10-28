@@ -90,10 +90,10 @@ object SpotifySync {
     /** Creates a new playlist on Spotify itself, adding [trackId] to it when given.
      *  Returns the playlist, or null when it could not be created (no session,
      *  network or Spotify error) so the caller can fall back to a local one. */
-    suspend fun createPlaylist(context: Context, name: String, trackId: String = "", public: Boolean = false): SpotifyPlaylist? {
+    suspend fun createPlaylist(context: Context, name: String, trackId: String = ""): SpotifyPlaylist? {
         if (name.isBlank()) return null
         if (!SpotifyTokenProvider.ensureToken(context.applicationContext)) return null
-        val playlist = Spotify.createPlaylist(name, public).getOrNull()
+        val playlist = Spotify.createPlaylist(name).getOrNull()
         if (playlist == null || playlist.id.isBlank()) {
             Log.w(TAG, "createPlaylist '$name' failed"); return null
         }

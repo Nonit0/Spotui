@@ -996,39 +996,87 @@ object Spotify {
         }
 
     /**
-     * Creates a new playlist for the current user via the REST API
-     * and returns it. The web-player token carries the playlist-modify scopes.
+     * Creates a new playlist for the current user the way the web player does,
+     * through spclient's playlist/v2 service (the public `POST me/playlists`
+     * answers 429 "API rate limit exceeded" to the web-player token):
+     * 1. create the playlist with its name → `spotify:playlist:…` uri,
+     * 2. add that uri to the top of the user's rootlist (their library).
      */
-    suspend fun createPlaylist(name: String, public: Boolean = false): Result<SpotifyPlaylist> =
+    suspend fun createPlaylist(name: String): Result<SpotifyPlaylist> =
         runCatching {
             val token = accessToken ?: throw SpotifyException(401, "Not authenticated")
-            val body = buildJsonObject {
-                put("name", name)
-                put("public", public)
-            }
-            var response: io.ktor.client.statement.HttpResponse? = null
-            val maxRetries = 3
-            for (attempt in 0 until maxRetries) {
-                response = restClient.post("me/playlists") {
-                    header("Authorization", "Bearer $token")
-                    setBody(TextContent(body.toString(), ContentType.Application.Json))
+            val createBody = buildJsonObject {
+                putJsonArray("ops") {
+                    add(buildJsonObject {
+                        put("kind", 6) // UPDATE_LIST_ATTRIBUTES
+                        putJsonObject("updateListAttributes") {
+                            putJsonObject("newAttributes") {
+                                putJsonObject("values") {
+                                    put("name", name)
+                                    putJsonArray("formatAttributes") {}
+                                    putJsonArray("pictureSize") {}
+                                }
+                                putJsonArray("noValue") {}
+                            }
+                        }
+                    })
                 }
-                if (response.status == HttpStatusCode.TooManyRequests) {
-                    val retryAfter = response.headers["Retry-After"]?.toLongOrNull() ?: (2L * (attempt + 1))
-                    log("W", "createPlaylist -> 429, waiting ${retryAfter}s (attempt ${attempt + 1}/$maxRetries)")
-                    delay(retryAfter * 1000)
-                    continue
+            }
+            val createResp = gqlClient.post("https://spclient.wg.spotify.com/playlist/v2/playlist") {
+                header("Authorization", "Bearer $token")
+                header("Accept", "application/json")
+                setBody(TextContent(createBody.toString(), ContentType.Application.Json))
+            }
+            if (createResp.status.value !in 200..299) {
+                log("W", "createPlaylist($name) create HTTP ${createResp.status.value}: ${createResp.bodyAsText().take(200)}")
+                throw SpotifyException(createResp.status.value, "createPlaylist HTTP ${createResp.status.value}")
+            }
+            val createText = createResp.bodyAsText()
+            val uri = runCatching { json.parseToJsonElement(createText).jsonObject.str("uri") }.getOrNull()
+                ?.takeIf { it.startsWith("spotify:playlist:") }
+                ?: throw SpotifyException(500, "createPlaylist: no playlist uri in ${createText.take(200)}")
+
+            val username = me().getOrThrow().id.ifBlank { throw SpotifyException(500, "createPlaylist: unknown username") }
+            val rootlistBody = buildJsonObject {
+                putJsonArray("deltas") {
+                    add(buildJsonObject {
+                        putJsonArray("ops") {
+                            add(buildJsonObject {
+                                put("kind", 2) // ADD
+                                putJsonObject("add") {
+                                    putJsonArray("items") {
+                                        add(buildJsonObject {
+                                            put("uri", uri)
+                                            putJsonObject("attributes") {
+                                                put("timestamp", System.currentTimeMillis().toString())
+                                                putJsonArray("formatAttributes") {}
+                                                putJsonArray("availableSignals") {}
+                                            }
+                                        })
+                                    }
+                                    put("addFirst", true)
+                                }
+                            })
+                        }
+                        putJsonObject("info") { putJsonObject("source") { put("client", 5) } } // WEBPLAYER
+                    })
                 }
-                break
+                put("wantResultingRevisions", false)
+                put("wantSyncResult", false)
+                putJsonArray("nonces") {}
             }
-            val resp = response ?: throw SpotifyException(500, "No response from createPlaylist")
-            if (resp.status.value !in 200..299) {
-                log("W", "createPlaylist($name) HTTP ${resp.status.value}: ${resp.bodyAsText().take(200)}")
-                throw SpotifyException(resp.status.value, "createPlaylist HTTP ${resp.status.value}")
+            val rootlistResp = gqlClient.post("https://spclient.wg.spotify.com/playlist/v2/user/$username/rootlist/changes") {
+                header("Authorization", "Bearer $token")
+                header("Accept", "application/json")
+                setBody(TextContent(rootlistBody.toString(), ContentType.Application.Json))
             }
-            val playlist = json.decodeFromString<SpotifyPlaylist>(resp.bodyAsText())
-            log("D", "createPlaylist($name, public=$public) OK — ${playlist.id}")
-            playlist
+            if (rootlistResp.status.value !in 200..299) {
+                log("W", "createPlaylist($name) rootlist HTTP ${rootlistResp.status.value}: ${rootlistResp.bodyAsText().take(200)}")
+                throw SpotifyException(rootlistResp.status.value, "createPlaylist rootlist HTTP ${rootlistResp.status.value}")
+            }
+            val id = uri.substringAfterLast(":")
+            log("D", "createPlaylist($name) OK — $id")
+            SpotifyPlaylist(id = id, name = name, uri = uri)
         }
 
     /**
