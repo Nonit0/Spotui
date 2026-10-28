@@ -35,7 +35,6 @@ import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -131,9 +130,16 @@ fun QueueContent(
     val curIdx = queue.indexOfFirst { it.id == currentId }.coerceAtLeast(0)
     val upcoming = if (queue.isNotEmpty()) queue.drop(curIdx + 1) else emptyList()
     val current = queue.getOrNull(curIdx)
+    // A queue may hold the same track twice: tell copies apart by their occurrence
+    // number, which (unlike the position) survives a drag swap with another track.
+    val occurrences = remember(queue) {
+        val seen = HashMap<Int, Int>()
+        queue.map { s -> seen.getOrDefault(s.id, 0).also { seen[s.id] = it + 1 } }
+    }
+    val upcomingOccurrences = occurrences.drop(curIdx + 1)
 
     // Drag-to-reorder state: which upcoming row is dragged and its live offset.
-    var draggingId by remember { mutableIntStateOf(-1) }
+    var draggingKey by remember { mutableStateOf<String?>(null) }
     var dragOffset by remember { mutableFloatStateOf(0f) }
     val rowHeightPx = with(LocalDensity.current) { 64.dp.toPx() }
 
@@ -208,12 +214,14 @@ fun QueueContent(
                             modifier = Modifier.padding(16.dp, 18.dp, 16.dp, 6.dp)
                         )
                     }
-                    itemsIndexed(upcoming, key = { _, s -> s.id }) { upIdx, song ->
-                        val isDragging = draggingId == song.id
+                    itemsIndexed(upcoming, key = { i, s -> "${s.id}_${upcomingOccurrences[i]}" }) { upIdx, song ->
+                        val occurrence = upcomingOccurrences[upIdx]
+                        val rowKey = "${song.id}_$occurrence"
+                        val isDragging = draggingKey == rowKey
                         val dismissState = rememberSwipeToDismissBoxState(
                             confirmValueChange = { value ->
                                 if (value != SwipeToDismissBoxValue.Settled) {
-                                    playerViewModel.removeFromQueue(song)
+                                    playerViewModel.removeQueueItem(queue.indexOfOccurrence(song.id, occurrence))
                                     true
                                 } else false
                             }
@@ -240,26 +248,26 @@ fun QueueContent(
                                 highlight = false,
                                 onLongClick = { menuSong = song },
                                 onClick = {
-                                    val idx = queue.indexOfFirst { it.id == song.id }
+                                    val idx = queue.indexOfOccurrence(song.id, occurrence)
                                     playerViewModel.updateSongState(
                                         song.coverUri, song.title, song.singer, true,
                                         song.id, idx.coerceAtLeast(0), song.album
                                     )
                                     SongPlayer.playSong(song.url, context, "song/${song.id}")
                                 },
-                                dragHandle = Modifier.pointerInput(song.id) {
+                                dragHandle = Modifier.pointerInput(rowKey) {
                                     detectDragGestures(
                                         onDragStart = {
-                                            draggingId = song.id
+                                            draggingKey = rowKey
                                             dragOffset = 0f
                                         },
-                                        onDragEnd = { draggingId = -1; dragOffset = 0f },
-                                        onDragCancel = { draggingId = -1; dragOffset = 0f },
+                                        onDragEnd = { draggingKey = null; dragOffset = 0f },
+                                        onDragCancel = { draggingKey = null; dragOffset = 0f },
                                     ) { change, dragAmount ->
                                         change.consume()
                                         dragOffset += dragAmount.y
                                         // Crossed a full row height → swap with the neighbour.
-                                        val abs = queue.indexOfFirst { it.id == song.id }
+                                        val abs = queue.indexOfOccurrence(song.id, occurrence)
                                         if (dragOffset > rowHeightPx / 2 && upIdx < upcoming.size - 1) {
                                             playerViewModel.moveQueueItem(abs, abs + 1)
                                             dragOffset -= rowHeightPx
@@ -351,4 +359,16 @@ private fun QueueRow(
             )
         }
     }
+}
+
+/** Position of the [occurrence]-th copy (0-based) of track [id] in the queue, or -1. */
+private fun List<com.music.spotui.data.entity.SongsModel>.indexOfOccurrence(id: Int, occurrence: Int): Int {
+    var seen = 0
+    forEachIndexed { i, s ->
+        if (s.id == id) {
+            if (seen == occurrence) return i
+            seen++
+        }
+    }
+    return -1
 }

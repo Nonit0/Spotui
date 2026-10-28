@@ -80,10 +80,11 @@ class PlayerViewModel @Inject constructor(private val currentSongState: CurrentS
         currentSongState.updateQueue(q)
     }
 
-    /** Remove a track from the queue entirely. */
-    fun removeFromQueue(song: SongsModel) {
+    /** Remove the track at [index] from the queue (other copies of it stay). */
+    fun removeQueueItem(index: Int) {
         val q = currentSongState.queue.value.toMutableList()
-        q.removeAll { it.id == song.id }
+        if (index !in q.indices) return
+        q.removeAt(index)
         currentSongState.updateQueue(q)
     }
 
