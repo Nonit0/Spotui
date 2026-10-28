@@ -68,8 +68,8 @@ Reglas extra de esta fase:
 | [IT-24](IT-24-renombrar-library-screen.md) | Renombrar `LibraryScreeen.kt` → `LibraryScreen.kt` | Igual que IT-05: renombrar el fichero, sin tocar código | Código | — | ✅ |
 | IT-25 | Borrar los tests de plantilla | Igual que IT-06: `ExampleUnitTest.kt` y `ExampleInstrumentedTest.kt` | Código | IT-21 | ⏳ |
 | [IT-26](IT-26-potoken-runblocking.md) | Quitar `runBlocking` de `PoTokenGenerator` | Cerrada sin cambios: en H4zh4n el `runBlocking` ya tiene tiempo límite y corre en un `CompletableFuture`; hacerlo `suspend` obliga a tocar `YTPlayerUtils`. Riesgo de bloqueo de hilos → S13 | Análisis | — | 🚫 |
-| IT-27 | Sacar la comparación de canciones de `SongPlayer` a `TrackMatcher.kt` | Igual que IT-14, pero ahora el bloque está en `SongPlayer.kt` ~l.1625-1838 (el fichero tiene 2612 líneas) | Código | — | ⏳ **siguiente** |
-| IT-28 | Tests unitarios de `TrackMatcher` | Igual que IT-15 | Código | IT-27 | ⏳ |
+| [IT-27](IT-27-extraer-track-matcher.md) | Sacar la comparación de canciones de `SongPlayer` a `TrackMatcher.kt` | Igual que IT-14; movido sin cambios (l.1625-1838 + `featSearchPattern`). `SongPlayer.kt` 2612 → 2397 líneas | Código | — | ✅ |
+| IT-28 | Tests unitarios de `TrackMatcher` | Igual que IT-15 | Código | IT-27 | ⏳ **siguiente** |
 | IT-29 | Sacar las credenciales del backup de Google | **Más grave que en la fase 1:** `backup_rules.xml` copia *todas* las prefs (incluidas `spotify_session` con la cookie `sp_dc`, `Deezer` y `SpotiflacSession`), y `data_extraction_rules.xml` no tiene reglas (en Android 12+ se copia todo). Cambio: excluir esos 3 ficheros en los dos XML | Código | — | ⏳ |
 | IT-30 | Mover la cookie de YouTube a su propio fichero y excluirlo del backup | Igual que la mitad de IT-16: `youtube_cookie` vive en `settings_prefs` (`SettingsPref.kt:82`), que sí debe copiarse | Código | IT-29 | ⏳ |
 | IT-31 | Revisar los 4 commits de RMNO21 contra H4zh4n | Análisis, sin tocar código: ver si `0035218`, `bfe4bdc`, `f1631c8` y `7244e4d` aplican aquí. Cada commit que aplique pasa a ser una iteración propia | Análisis | — | ⏳ |
@@ -106,6 +106,7 @@ Se convierten en iteración solo si el usuario lo pide. Los IDs no se renumeran:
 | S11 | `ProviderStreamTest` usa red: separarlo o marcarlo para que no corra por defecto | Fase 2, según el resultado de IT-21 |
 | S12 | La release se firma con `app/debug.keystore`, que está en git (contraseña `android`): ¿clave propia fuera de git? | Fase 2, hallazgo de IT-20 |
 | S13 | **Posible bloqueo de hilos al generar el PoToken** (hallazgo de IT-26): `PoTokenGenerator.kt:40` usa `runBlocking` dentro de un `CompletableFuture.supplyAsync` (`YTPlayerUtils.kt:126`), que ocupa un hilo del `ForkJoinPool` común hasta 5 s; `potFuture.get`/`sigFuture.get` (`YTPlayerUtils.kt:143,150`) bloquean el hilo de la corrutina; y la cancelación (saltar canción) no llega al futuro. Arreglo: pasar todo a corrutinas (`suspend` + `async` + `withTimeoutOrNull`), 2 ficheros, probar bien la reproducción | Pendiente: a tratar en el futuro (decisión del usuario en IT-26) |
+| S14 | Errata en el marcador `clean` (`TrackMatcher.kt:110`): `пensored` lleva una `п` cirílica, así que nunca casa con "censored" (hallazgo de IT-27) | Pendiente |
 
 S3, S4 y S5 siguen vigentes en la base H4zh4n (`SpotifyWebPlayer` sigue ahí y desactivado, y
 `isMinifyEnabled = false`).

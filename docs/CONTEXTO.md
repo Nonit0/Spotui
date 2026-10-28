@@ -40,7 +40,7 @@ Paquetes principales de `:app`:
 
 | Paquete | Qué hay |
 |---|---|
-| `di/` | `SongPlayer.kt` (motor de reproducción, ~2600 líneas), `SpotifyWebPlayer.kt` (desactivado) |
+| `di/` | `SongPlayer.kt` (motor de reproducción, ~2400 líneas), `TrackMatcher.kt` (puntuación de candidatos de YouTube), `SpotifyWebPlayer.kt` (desactivado) |
 | `providers/` | Un proveedor de audio por fichero: Amazon, Deezer, Qobuz, SoundCloud, TIDAL + búsqueda y *override* manual de coincidencias |
 | `lossless/`, `deezer/` | SpotiFLAC (FLAC comunitario) y descifrado/sesión de Deezer |
 | `audio/` | Crossfade, `ResilientPlaybackDataSource`, `ProviderHealthChecker`, parser de bitrate FLAC |
@@ -79,7 +79,7 @@ Cada canción lleva en `SongsModel.url` una **clave de reproducción** (`spotify
    puede desactivar (`getDisabledAudioProviders`).
 
 YouTube compara candidatos por título, artista, duración y explicit (bloque de puntuación en
-`SongPlayer.kt` ~l.1625-1838). Extras: prefetch de las siguientes de la cola, caché de medios de
+`di/TrackMatcher.kt`, sacado de `SongPlayer` en IT-27). Extras: prefetch de las siguientes de la cola, caché de medios de
 ExoPlayer, crossfade (`audio/`), badge de fuente y calidad, calidad distinta por Wi‑Fi y datos.
 
 ### 4.4 Cuentas y credenciales
@@ -120,7 +120,7 @@ El repo es configurable en Ajustes; por defecto `https://github.com/Nonit0/Spotu
 **Deuda / riesgos detectados**
 | # | Hallazgo | Dónde | Iteración |
 |---|---|---|---|
-| D1 | `SongPlayer.kt` es un *god object* (~2600 líneas: resolución, crossfade, cachés, puntuación) | `di/SongPlayer.kt` | IT-27 (primer trozo) |
+| D1 | `SongPlayer.kt` es un *god object* (~2400 líneas: resolución, crossfade, cachés) | `di/SongPlayer.kt` | IT-27 sacó la puntuación a `TrackMatcher` ✅; más trozos solo si hace falta |
 | D2 | `runBlocking` al generar el PoToken dentro de un `CompletableFuture`: puede bloquear hilos del pool hasta 5 s y la cancelación no llega (IT-26 cerrada sin cambios) | `metrolist/music/utils/potoken/PoTokenGenerator.kt:40`, `metrolist/music/utils/YTPlayerUtils.kt:126-150` | S13 |
 | D3 | ✅ Resuelta: el typo `LibraryScreeen.kt` ya se llama `LibraryScreen.kt` | `ui/screens/` | IT-24 |
 | D4 | Tests de plantilla sin valor; `ProviderStreamTest` usa red. Hay 36 `@Test` en total (`:app` 16 unitarios + 1 instrumentado, `:spotify` 19, `:innertube` 0) | `app/src/test`, `app/src/androidTest` | IT-21, IT-25 |
