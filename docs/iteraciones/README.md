@@ -84,6 +84,7 @@ Reglas extra de esta fase:
 | [IT-40](IT-40-crear-playlists-via-spclient.md) | Crear las playlists en Spotify como el reproductor web | `createPlaylist` por spclient playlist/v2 (crear + rootlist) en vez de `me/playlists` (429); sin esperas | Código | IT-39 | ✅ |
 | [IT-41](IT-41-cancion-actual-por-posicion.md) | La canción que suena se localiza por posición, no por id | S20: `CurrentSongState.positionIn` (usa `songIndex`); arregla cola, carrusel y siguiente/anterior con canciones repetidas | Código | IT-37 | ✅ |
 | [IT-42](IT-42-resaltar-solo-copia-que-suena.md) | En una playlist solo se resalta la copia que suena | S21: la fila compara id + nº de copia (`playingOccurrence`) | Código | IT-41 | ✅ |
+| [IT-43](IT-43-errata-marcador-clean.md) | Errata en el marcador `clean` de TrackMatcher | S14: `пensored` (п cirílica) → `censored` + 1 test | Código | IT-28 | ✅ (pendiente de ejecutar el test) |
 
 #### Correspondencia fase 1 → fase 2
 
@@ -116,7 +117,7 @@ Se convierten en iteración solo si el usuario lo pide. Los IDs no se renumeran:
 | S11 | `ProviderStreamTest` usa red: separarlo o marcarlo para que no corra por defecto | Pendiente. IT-21: tarda ~2 min y no tiene asserts (siempre pasa) |
 | S12 | La release se firma con `app/debug.keystore`, que está en git (contraseña `android`): ¿clave propia fuera de git? | Fase 2, hallazgo de IT-20 |
 | S13 | **Posible bloqueo de hilos al generar el PoToken** (hallazgo de IT-26): `PoTokenGenerator.kt:40` usa `runBlocking` dentro de un `CompletableFuture.supplyAsync` (`YTPlayerUtils.kt:126`), que ocupa un hilo del `ForkJoinPool` común hasta 5 s; `potFuture.get`/`sigFuture.get` (`YTPlayerUtils.kt:143,150`) bloquean el hilo de la corrutina; y la cancelación (saltar canción) no llega al futuro. Arreglo: pasar todo a corrutinas (`suspend` + `async` + `withTimeoutOrNull`), 2 ficheros, probar bien la reproducción | Pendiente: a tratar en el futuro (decisión del usuario en IT-26) |
-| S14 | Errata en el marcador `clean` (`TrackMatcher.kt:110`): `пensored` lleva una `п` cirílica, así que nunca casa con "censored" (hallazgo de IT-27) | Pendiente |
+| S14 | Errata en el marcador `clean` (`TrackMatcher.kt:110`): `пensored` lleva una `п` cirílica, así que nunca casa con "censored" (hallazgo de IT-27) | ✅ Resuelta en IT-43 |
 | S15 | `getYoutubeCookie`, `setYoutubeCookie`, `isYoutubeLoggedIn` y `KEY_YT_COOKIE` (`SettingsPref.kt:76-85`) no se usan en ningún sitio: borrarlos (hallazgo de IT-30) | Pendiente |
 | S16 | En `ProviderStreamTest` (2026-10-28) solo YouTube Music resuelve (10/10). Amazon falla al instante con `toString(...) must not be null` (¿bug o contexto falso del test?); Qobuz da timeout; TIDAL, Deezer Mirror, SoundCloud y SpotiFLAC no encuentran ninguna canción; Deezer Direct necesita ARL. Investigar cuáles están caídos de verdad (hallazgo de IT-21) | Pendiente |
 | S17 | `UpdateChecker.fetchLatestRelease` (`UpdateChecker.kt:58-59`) no cierra el `response` de OkHttp cuando no es 2xx: usar `use {}` (hallazgo de IT-31) | Pendiente |
