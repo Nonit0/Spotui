@@ -62,9 +62,9 @@ Reglas extra de esta fase:
 | [IT-18](IT-18-base-h4zh4n-compila.md) | Traer H4zh4n a `base-h4zh4n` y comprobar que compila | — | Verificación | — | ✅ |
 | [IT-19](IT-19-agp-9-4-1.md) | Subir el AGP de 9.2.1 a 9.4.1 | — | Código | IT-18 | ✅ |
 | [IT-20](IT-20-contexto-base-h4zh4n.md) | Actualizar `CONTEXTO.md` a la base H4zh4n | Reescribir el contexto: módulos, fuentes de audio (lista de prioridad), login de YouTube por WebView, `UpdateChecker` único con URL configurable, tests que existen | Docs | IT-18 | ✅ |
-| IT-21 | Pasar los tests unitarios en Android Studio | El usuario los lanza (`:app`, `:spotify`, `:innertube`) y se apunta qué pasa y qué falla. `ProviderStreamTest` usa red: se espera que falle o tarde | Verificación | IT-18 | ⏳ **siguiente** |
-| IT-22 | Apuntar las actualizaciones a `Nonit0/Spotui` | `DEFAULT_UPDATE_REPO_URL` (`SettingsPref.kt:36`) → `https://github.com/Nonit0/Spotui`. Sustituye a IT-09/IT-13. Pregunta: ¿esperamos a la 1ª release de tu fork? Sin release el aviso no saldrá nunca | Código | — | ⏳ |
-| IT-23 | Enlace "GitHub" de Ajustes a tu fork | `SettingsScreen.kt:839` abre `H4zh4n/Spotui`. Pregunta: ¿tu fork, o se deja el original por créditos? | Código | — | ⏳ |
+| IT-21 | Pasar los tests unitarios en Android Studio | El usuario los lanza (`:app`, `:spotify`, `:innertube`) y se apunta qué pasa y qué falla. `ProviderStreamTest` usa red: se espera que falle o tarde | Verificación | IT-18 | ⏳ pendiente (la lanza el usuario) |
+| [IT-22](IT-22-actualizaciones-a-nonit0.md) | Apuntar las actualizaciones a `Nonit0/Spotui` | `DEFAULT_UPDATE_REPO_URL` (`SettingsPref.kt:36`) → `https://github.com/Nonit0/Spotui`. Sustituye a IT-09/IT-13. Sin avisos hasta la 1ª release del fork | Código | — | ✅ |
+| IT-23 | Enlace "GitHub" de Ajustes a tu fork | `SettingsScreen.kt:839` abre `H4zh4n/Spotui`. Pregunta: ¿tu fork, o se deja el original por créditos? | Código | — | ⏳ **siguiente** |
 | IT-24 | Renombrar `LibraryScreeen.kt` → `LibraryScreen.kt` | Igual que IT-05: renombrar el fichero, sin tocar código | Código | — | ⏳ |
 | IT-25 | Borrar los tests de plantilla | Igual que IT-06: `ExampleUnitTest.kt` y `ExampleInstrumentedTest.kt` | Código | IT-21 | ⏳ |
 | IT-26 | Quitar `runBlocking` de `PoTokenGenerator` | Igual que IT-11 (`PoTokenGenerator.kt:40`): hacerlo `suspend`. Antes se revisan las llamadas, que pueden haber cambiado respecto a IT-08 | Código | — | ⏳ |
