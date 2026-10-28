@@ -72,6 +72,14 @@ class TrackMatcherTest {
     }
 
     @Test
+    fun versionMarkersTellCensoredFromUncensored() {
+        assertTrue("clean" in TrackMatcher.versionMarkers("Song (Censored)"))
+        val uncensored = TrackMatcher.versionMarkers("Song (Uncensored)")
+        assertTrue("explicit" in uncensored)
+        assertFalse("clean" in uncensored)
+    }
+
+    @Test
     fun acceptsExactMatch() {
         val result = score(song())
         assertEquals(4.0, result.score, 1e-9)

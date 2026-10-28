@@ -107,7 +107,7 @@ internal object TrackMatcher {
         VersionMarker("instrumental", markerPattern("""instrumental|no vocals|инструментал|без вокала"""), true),
         VersionMarker("mashup", markerPattern("""mashup|mash up|bootleg|rework|flip|мешап|мэшап|бутлег"""), true),
         VersionMarker("fan edit", markerPattern("""fan edit|fanmade|right version|edit audio|перезалив|перезалит\w*"""), true),
-        VersionMarker("clean", markerPattern("""\bclean\b|clean version|edited version|пensored"""), false),
+        VersionMarker("clean", markerPattern("""\bclean\b|clean version|edited version|censored"""), false),
         VersionMarker("explicit", markerPattern("""\bexplicit\b|explicit version|uncensored|uncut"""), false),
         VersionMarker("extended", markerPattern("""extended mix|extended version|12 inch|12"""), false),
         VersionMarker("radio edit", markerPattern("""radio edit|single edit|edit version"""), false),
