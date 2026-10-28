@@ -71,8 +71,8 @@ Reglas extra de esta fase:
 | [IT-27](IT-27-extraer-track-matcher.md) | Sacar la comparación de canciones de `SongPlayer` a `TrackMatcher.kt` | Igual que IT-14; movido sin cambios (l.1625-1838 + `featSearchPattern`). `SongPlayer.kt` 2612 → 2397 líneas | Código | — | ✅ |
 | [IT-28](IT-28-tests-track-matcher.md) | Tests unitarios de `TrackMatcher` | 10 tests en `di/TrackMatcherTest.kt` (incluye `explicit`). Escritos sin ejecutar: los lanza el usuario | Código | IT-27 | ✅ (pendiente de ejecutar) |
 | [IT-29](IT-29-credenciales-fuera-del-backup.md) | Sacar las credenciales del backup de Google | `spotify_session`, `Deezer` y `SpotiflacSession` excluidos en `backup_rules.xml` y `data_extraction_rules.xml` (cloud + device-transfer) | Código | — | ✅ |
-| IT-30 | Mover la cookie de YouTube a su propio fichero y excluirlo del backup | Igual que la mitad de IT-16: `youtube_cookie` vive en `settings_prefs` (`SettingsPref.kt:82`), que sí debe copiarse | Código | IT-29 | ⏳ **siguiente** |
-| IT-31 | Revisar los 4 commits de RMNO21 contra H4zh4n | Análisis, sin tocar código: ver si `0035218`, `bfe4bdc`, `f1631c8` y `7244e4d` aplican aquí. Cada commit que aplique pasa a ser una iteración propia | Análisis | — | ⏳ |
+| [IT-30](IT-30-cookie-youtube-backup.md) | Mover la cookie de YouTube a su propio fichero y excluirlo del backup | Cerrada sin cambios: las funciones de la cookie no se usan, no hay login de YouTube (`YouTube.cookie = null`). Funciones sin uso → S15 | Análisis | IT-29 | 🚫 |
+| IT-31 | Revisar los 4 commits de RMNO21 contra H4zh4n | Análisis, sin tocar código: ver si `0035218`, `bfe4bdc`, `f1631c8` y `7244e4d` aplican aquí. Cada commit que aplique pasa a ser una iteración propia | Análisis | — | ⏳ **siguiente** (en pausa: el usuario prueba la app) |
 | IT-32 | Decidir si se trae Soulseek | Decisión, sin código: solo existe en `Spotui/Spotui` 1.6. Si se trae, se parte en iteraciones antes de empezar | Decisión | IT-31 | ⏳ |
 
 #### Correspondencia fase 1 → fase 2
@@ -107,6 +107,7 @@ Se convierten en iteración solo si el usuario lo pide. Los IDs no se renumeran:
 | S12 | La release se firma con `app/debug.keystore`, que está en git (contraseña `android`): ¿clave propia fuera de git? | Fase 2, hallazgo de IT-20 |
 | S13 | **Posible bloqueo de hilos al generar el PoToken** (hallazgo de IT-26): `PoTokenGenerator.kt:40` usa `runBlocking` dentro de un `CompletableFuture.supplyAsync` (`YTPlayerUtils.kt:126`), que ocupa un hilo del `ForkJoinPool` común hasta 5 s; `potFuture.get`/`sigFuture.get` (`YTPlayerUtils.kt:143,150`) bloquean el hilo de la corrutina; y la cancelación (saltar canción) no llega al futuro. Arreglo: pasar todo a corrutinas (`suspend` + `async` + `withTimeoutOrNull`), 2 ficheros, probar bien la reproducción | Pendiente: a tratar en el futuro (decisión del usuario en IT-26) |
 | S14 | Errata en el marcador `clean` (`TrackMatcher.kt:110`): `пensored` lleva una `п` cirílica, así que nunca casa con "censored" (hallazgo de IT-27) | Pendiente |
+| S15 | `getYoutubeCookie`, `setYoutubeCookie`, `isYoutubeLoggedIn` y `KEY_YT_COOKIE` (`SettingsPref.kt:76-85`) no se usan en ningún sitio: borrarlos (hallazgo de IT-30) | Pendiente |
 
 S3, S4 y S5 siguen vigentes en la base H4zh4n (`SpotifyWebPlayer` sigue ahí y desactivado, y
 `isMinifyEnabled = false`).
