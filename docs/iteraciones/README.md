@@ -65,9 +65,9 @@ Reglas extra de esta fase:
 | IT-21 | Pasar los tests unitarios en Android Studio | El usuario los lanza (`:app`, `:spotify`, `:innertube`) y se apunta qué pasa y qué falla. `ProviderStreamTest` usa red: se espera que falle o tarde | Verificación | IT-18 | ⏳ pendiente (la lanza el usuario) |
 | [IT-22](IT-22-actualizaciones-a-nonit0.md) | Apuntar las actualizaciones a `Nonit0/Spotui` | `DEFAULT_UPDATE_REPO_URL` (`SettingsPref.kt:36`) → `https://github.com/Nonit0/Spotui`. Sustituye a IT-09/IT-13. Sin avisos hasta la 1ª release del fork | Código | — | ✅ |
 | [IT-23](IT-23-firma-ajustes-nonit0.md) | Firma de Ajustes a `Nonit0` | `SettingsScreen.kt:834-839`: `Maintained with ♥ by Hazhan Salih` → `by Nonit0`, enlace a tu fork. Créditos a H4zh4n van al README (S10) | Código | — | ✅ |
-| IT-24 | Renombrar `LibraryScreeen.kt` → `LibraryScreen.kt` | Igual que IT-05: renombrar el fichero, sin tocar código | Código | — | ⏳ **siguiente** |
+| [IT-24](IT-24-renombrar-library-screen.md) | Renombrar `LibraryScreeen.kt` → `LibraryScreen.kt` | Igual que IT-05: renombrar el fichero, sin tocar código | Código | — | ✅ |
 | IT-25 | Borrar los tests de plantilla | Igual que IT-06: `ExampleUnitTest.kt` y `ExampleInstrumentedTest.kt` | Código | IT-21 | ⏳ |
-| IT-26 | Quitar `runBlocking` de `PoTokenGenerator` | Igual que IT-11 (`PoTokenGenerator.kt:40`): hacerlo `suspend`. Antes se revisan las llamadas, que pueden haber cambiado respecto a IT-08 | Código | — | ⏳ |
+| IT-26 | Quitar `runBlocking` de `PoTokenGenerator` | Igual que IT-11 (`PoTokenGenerator.kt:40`): hacerlo `suspend`. Antes se revisan las llamadas, que pueden haber cambiado respecto a IT-08 | Código | — | ⏳ **siguiente** |
 | IT-27 | Sacar la comparación de canciones de `SongPlayer` a `TrackMatcher.kt` | Igual que IT-14, pero ahora el bloque está en `SongPlayer.kt` ~l.1625-1838 (el fichero tiene 2612 líneas) | Código | — | ⏳ |
 | IT-28 | Tests unitarios de `TrackMatcher` | Igual que IT-15 | Código | IT-27 | ⏳ |
 | IT-29 | Sacar las credenciales del backup de Google | **Más grave que en la fase 1:** `backup_rules.xml` copia *todas* las prefs (incluidas `spotify_session` con la cookie `sp_dc`, `Deezer` y `SpotiflacSession`), y `data_extraction_rules.xml` no tiene reglas (en Android 12+ se copia todo). Cambio: excluir esos 3 ficheros en los dos XML | Código | — | ⏳ |
