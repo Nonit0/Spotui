@@ -129,6 +129,9 @@ fun MainBottomNavigation(navController: NavHostController, bottomBarState: Mutab
                                 },
                                 onClick = {
                                     if (currentTab != item.route) {
+                                        // The tab may come back on a sub-screen (restoreState), which
+                                        // the root-route check above would miss: switch the tab here.
+                                        currentTab = item.route
                                         navController.navigate(item.route) {
                                             navController.graph.startDestinationRoute?.let { startRoute ->
                                                 popUpTo(startRoute) {
