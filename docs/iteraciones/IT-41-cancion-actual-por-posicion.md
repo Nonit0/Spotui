@@ -4,7 +4,7 @@
 |---|---|
 | Tipo | Código |
 | Depende de | IT-37 |
-| Estado | ✅ Hecha (2026-10-29) · pendiente de prueba manual |
+| Estado | ✅ Hecha y probada (2026-10-29) |
 
 ## 1. Qué hacer
 S20: con la misma canción dos veces en la cola, todo buscaba "la que suena" con `indexOfFirst { it.id == songId }`, que
@@ -45,3 +45,4 @@ Cola con la canción A en dos posiciones (p. ej. una playlist que la repite o "A
 | Fecha | Estado | Resultado real | Commit |
 |---|---|---|---|
 | 2026-10-29 | ✅ Hecha | No compilado aquí (lo hace el usuario en Android Studio) | `aba1c5f` |
+| 2026-10-29 | ✅ Probada | El usuario: "funciona" | — |
