@@ -4,7 +4,7 @@
 |---|---|
 | Tipo | Código |
 | Depende de | IT-41 |
-| Estado | ✅ Hecha (2026-10-29) · pendiente de prueba manual |
+| Estado | ✅ Hecha y probada (2026-10-29) |
 
 ## 1. Qué hacer
 S21: las listas pintan de verde la canción que suena comparando por id, así que si se repite se resaltan **todas**
@@ -38,3 +38,4 @@ Playlist con la canción A dos veces → tocar la 2.ª copia → solo esa fila e
 | Fecha | Estado | Resultado real | Commit |
 |---|---|---|---|
 | 2026-10-29 | ✅ Hecha | No compilado aquí (lo hace el usuario en Android Studio) | `da843e3` |
+| 2026-10-29 | ✅ Probada | El usuario: "funciona" | — |

@@ -83,7 +83,7 @@ Reglas extra de esta fase:
 | [IT-39](IT-39-crear-playlists-en-spotify.md) | Crear las playlists nuevas en Spotify | Biblioteca y "Saved in" crean en Spotify (`SpotifySync.createPlaylist`); local con aviso si falla | Código | — | ✅ (completada en IT-40) |
 | [IT-40](IT-40-crear-playlists-via-spclient.md) | Crear las playlists en Spotify como el reproductor web | `createPlaylist` por spclient playlist/v2 (crear + rootlist) en vez de `me/playlists` (429); sin esperas | Código | IT-39 | ✅ |
 | [IT-41](IT-41-cancion-actual-por-posicion.md) | La canción que suena se localiza por posición, no por id | S20: `CurrentSongState.positionIn` (usa `songIndex`); arregla cola, carrusel y siguiente/anterior con canciones repetidas | Código | IT-37 | ✅ |
-| [IT-42](IT-42-resaltar-solo-copia-que-suena.md) | En una playlist solo se resalta la copia que suena | S21: la fila compara id + nº de copia (`playingOccurrence`) | Código | IT-41 | ✅ (pendiente de prueba manual) |
+| [IT-42](IT-42-resaltar-solo-copia-que-suena.md) | En una playlist solo se resalta la copia que suena | S21: la fila compara id + nº de copia (`playingOccurrence`) | Código | IT-41 | ✅ |
 
 #### Correspondencia fase 1 → fase 2
 
