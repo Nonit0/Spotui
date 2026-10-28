@@ -667,7 +667,8 @@ fun PlaylistScreen(navController: NavController, playlistId: String, playlistNam
                     }
                 }
 
-                itemsIndexed(filteredSongs, key = { _, song -> song.id }) { index, song ->
+                // Spotify playlists may contain the same track twice: key on position too.
+                itemsIndexed(filteredSongs, key = { index, song -> "${song.id}_$index" }) { index, song ->
                     val currentColor = if (song.id == playlistViewModel.currentSongId.value)
                         Color(AppPalette.toArgb()) else Color.White
 
