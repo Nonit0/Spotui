@@ -88,7 +88,7 @@ Archivos locales, Letras sincronizadas con traducción, Canvas (vídeo en bucle)
 | # | Hallazgo | Dónde |
 |---|---|---|
 | D1 | **Dos `UpdateChecker` distintos** y ambos en uso, con endpoints distintos. El de `data/update` consulta el tag fijo `Release`, congelado en 1.2.1 → **el diálogo de actualización no avisa desde la 1.3** (comprobado 28-10-2026) | `data/api/UpdateChecker.kt` (usado en `HomeScreen`), `data/update/UpdateChecker.kt` (usado en `UpdatePrompt`) |
-| D2 | `SongPlayer.kt` es un *god object* de ~1800 líneas (resolución, matching, crossfade, swap, caché) | `di/SongPlayer.kt` |
+| D2 | `SongPlayer.kt` es un *god object* (resolución, crossfade, swap, caché). La comparación de canciones ya está en `TrackMatcher.kt` (IT-14): 1810 → 1602 líneas | `di/SongPlayer.kt` |
 | D3 | ~~`runBlocking` en generación de PoToken~~ → corregido en IT-11 (ahora `suspend`; los tiempos límite de 15/45 s ya pueden cortar una WebView colgada) | `metrolist/music/utils/potoken/PoTokenGenerator.kt:33` |
 | D4 | ~~Typo en nombre de fichero `LibraryScreeen.kt`~~ → corregido en IT-05 | `ui/screens/` |
 | D5 | ~~Tests de plantilla sin valor~~ (borrados en IT-06). La cobertura sigue siendo baja: 20 tests unitarios en `:app` + `:innertube` | `app/src/test`, `app/src/androidTest` |

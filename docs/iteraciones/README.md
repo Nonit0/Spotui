@@ -40,8 +40,8 @@ Contexto de la app: [`../CONTEXTO.md`](../CONTEXTO.md). Plantilla: [`PLANTILLA.m
 | [IT-11](IT-11-potoken-suspend.md) | Quitar `runBlocking` de `PoTokenGenerator` (hacerlo `suspend`) | Código | IT-08 | ✅ (falta prueba manual) |
 | [IT-12](IT-12-tests-modulo-spotify.md) | Ejecutar los tests de `:spotify` | Verificación | IT-01 | ✅ |
 | [IT-13](IT-13-badge-home-a-nonit0.md) | Apuntar el aviso de Home a `Nonit0/Spotui` | Código | — | ✅ |
-| [IT-14](IT-14-extraer-track-matcher.md) | Sacar la comparación de canciones de `SongPlayer` a `TrackMatcher.kt` | Código | — | ⏳ **siguiente** |
-| [IT-15](IT-15-tests-track-matcher.md) | Tests unitarios de `TrackMatcher` | Código | IT-14 | ⏳ |
+| [IT-14](IT-14-extraer-track-matcher.md) | Sacar la comparación de canciones de `SongPlayer` a `TrackMatcher.kt` | Código | — | ✅ (falta prueba manual) |
+| [IT-15](IT-15-tests-track-matcher.md) | Tests unitarios de `TrackMatcher` | Código | IT-14 | ⏳ **siguiente** |
 | [IT-16](IT-16-credenciales-fuera-del-backup.md) | Sacar la cookie de YouTube y Soulseek del backup de Google | Código | — | ⏳ |
 
 ## Backlog de sugerencias (aún no son iteraciones)
