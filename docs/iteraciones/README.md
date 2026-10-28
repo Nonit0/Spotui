@@ -74,6 +74,9 @@ Reglas extra de esta fase:
 | [IT-30](IT-30-cookie-youtube-backup.md) | Mover la cookie de YouTube a su propio fichero y excluirlo del backup | Cerrada sin cambios: las funciones de la cookie no se usan, no hay login de YouTube (`YouTube.cookie = null`). Funciones sin uso → S15 | Análisis | IT-29 | 🚫 |
 | [IT-31](IT-31-commits-rmno21.md) | Revisar los 4 commits de RMNO21 contra H4zh4n | 3 aplican limpio; `bfe4bdc` no por `UpdateChecker` (OkHttp en H4zh4n). Bug real: seek en Deezer (`f1631c8`). Qué commits se traen: decisión del usuario | Análisis | — | ✅ |
 | IT-32 | Decidir si se trae Soulseek | Decisión, sin código: solo existe en `Spotui/Spotui` 1.6. Si se trae, se parte en iteraciones antes de empezar | Decisión | IT-31 | ⏳ **siguiente** |
+| [IT-33](IT-33-deezer-seek-canvas.md) | Traer `f1631c8`: salto al final en Deezer + lector de Canvas | Cherry-pick. Arregla el `IllegalArgumentException` al saltar al último trozo en Deezer | Código | IT-31 | ✅ (pendiente de prueba manual) |
+| [IT-34](IT-34-concurrencia-rmno21.md) | Traer `0035218`: concurrencia | Cherry-pick. `SpotifySync` set concurrente, `NewPipeExtractor.init()` sincronizado, cachés de `SpotifyMapper` | Código | IT-31 | ✅ (pendiente de prueba manual) |
+| [IT-35](IT-35-cerrar-conexiones-http.md) | Traer `bfe4bdc` sin `UpdateChecker`: cerrar conexiones HTTP | `DeezerSession`, `LosslessSource`, `SpotiflacGated` hacen `disconnect()` en `finally` | Código | IT-31 | ✅ (pendiente de prueba manual) |
 
 #### Correspondencia fase 1 → fase 2
 
