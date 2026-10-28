@@ -90,7 +90,7 @@ ExoPlayer, crossfade (`audio/`), badge de fuente y calidad, calidad distinta por
 | Deezer (ARL) | `Deezer.xml` |
 | SpotiFLAC | `SpotiflacSession.xml` |
 
-Sin cifrar y, hoy, **todas entran en el backup de Google** (ver D6).
+Sin cifrar. Desde IT-29, las de Spotify, Deezer y SpotiFLAC **no entran en el backup de Google**; la cookie de YouTube sí (ver D6).
 
 ### 4.5 Servicio y sistema
 `PlaybackService` (`MediaLibraryService` de Media3) da notificación, pantalla de bloqueo y
@@ -125,7 +125,7 @@ El repo es configurable en Ajustes; por defecto `https://github.com/Nonit0/Spotu
 | D3 | ✅ Resuelta: el typo `LibraryScreeen.kt` ya se llama `LibraryScreen.kt` | `ui/screens/` | IT-24 |
 | D4 | Tests de plantilla sin valor; `ProviderStreamTest` usa red. Hay 46 `@Test` en total (`:app` 26 unitarios —10 de `TrackMatcherTest`, IT-28— + 1 instrumentado, `:spotify` 19, `:innertube` 0) | `app/src/test`, `app/src/androidTest` | IT-21, IT-25 |
 | D5 | ✅ Resuelta: aviso de actualización (IT-22) y firma de Ajustes `Maintained with ♥ by Nonit0` (IT-23) apuntan a `Nonit0/Spotui` | `SettingsPref.kt:36`, `SettingsScreen.kt:834-839` | IT-22, IT-23 |
-| D6 | **Credenciales en el backup de Google**: `backup_rules.xml` incluye todas las prefs y `data_extraction_rules.xml` no tiene reglas (Android 12+ copia todo) | `res/xml/`, `data/preferences/*` | IT-29, IT-30 |
+| D6 | Credenciales en el backup de Google: ✅ Spotify, Deezer y SpotiFLAC excluidas (IT-29); falta `youtube_cookie`, que vive en `settings_prefs` | `res/xml/`, `data/preferences/SettingsPref.kt` | IT-30 |
 | D7 | Reproductor web de Spotify desactivado pero presente | `di/SpotifyWebPlayer.kt`, `ui/notification/WebMediaPlayer.kt` | S3 |
 | D8 | Release sin minificar (`isMinifyEnabled = false`) → APK de ~100 MB | `app/build.gradle.kts` | S4 |
 | D9 | La release se firma con `app/debug.keystore`, que está **en git** con contraseña `android`. Ventaja: el APK que compiles actualiza encima del de H4zh4n sin desinstalar. Riesgo: cualquiera puede firmar un APK que se instale encima | `app/build.gradle.kts:32-56` | S12 |
