@@ -23,6 +23,7 @@ class PlaylistViewModel @Inject constructor(
 
     val currentSongPlayingState: State<Boolean> get() = currentSongState.playingState
     val currentSongId: State<Int> get() = currentSongState.songId
+    fun currentSongOccurrence(): Int = currentSongState.playingOccurrence()
 
     private val _songs: MutableStateFlow<Response<List<SongsModel>>> = MutableStateFlow(Response.Loading())
     val songs: StateFlow<Response<List<SongsModel>>> = _songs

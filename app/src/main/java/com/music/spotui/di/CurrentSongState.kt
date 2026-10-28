@@ -64,6 +64,13 @@ class CurrentSongState @Inject constructor() {
         return q.indexOfFirst { it.url == _songUrl.value }
     }
 
+    /** Which copy of the playing song is playing: 0 = its first occurrence in the queue. */
+    fun playingOccurrence(): Int {
+        val q = _queue.value
+        val pos = positionIn(q)
+        return if (pos < 0) 0 else q.take(pos).count { it.id == _songId.value }
+    }
+
     /** Keeps the playing position in step after a queue edit moved it. */
     fun updateSongIndex(index: Int) { _songIndex.value = index }
 

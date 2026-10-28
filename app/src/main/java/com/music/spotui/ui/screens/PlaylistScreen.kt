@@ -669,7 +669,10 @@ fun PlaylistScreen(navController: NavController, playlistId: String, playlistNam
 
                 // Spotify playlists may contain the same track twice: key on position too.
                 itemsIndexed(filteredSongs, key = { index, song -> "${song.id}_$index" }) { index, song ->
-                    val currentColor = if (song.id == playlistViewModel.currentSongId.value)
+                    // Only the copy that is playing goes green, not every copy of the song.
+                    val occurrence = filteredSongs.take(index).count { it.id == song.id }
+                    val currentColor = if (song.id == playlistViewModel.currentSongId.value &&
+                        occurrence == playlistViewModel.currentSongOccurrence())
                         Color(AppPalette.toArgb()) else Color.White
 
                     SwipeToPlayNextWrapper(
