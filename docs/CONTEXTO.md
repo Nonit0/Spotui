@@ -124,7 +124,7 @@ El repo es configurable en Ajustes; por defecto `https://github.com/Nonit0/Spotu
 | D2 | `runBlocking` al generar el PoToken: los tiempos límite no pueden cortar una WebView colgada | `metrolist/music/utils/potoken/PoTokenGenerator.kt:40` | IT-26 |
 | D3 | Typo en el nombre de fichero `LibraryScreeen.kt` | `ui/screens/` | IT-24 |
 | D4 | Tests de plantilla sin valor; `ProviderStreamTest` usa red. Hay 36 `@Test` en total (`:app` 16 unitarios + 1 instrumentado, `:spotify` 19, `:innertube` 0) | `app/src/test`, `app/src/androidTest` | IT-21, IT-25 |
-| D5 | Enlace "GitHub" de Ajustes apunta a `H4zh4n/Spotui` (el aviso de actualización ya mira `Nonit0/Spotui`, IT-22 ✅) | `SettingsScreen.kt:839` | IT-23 |
+| D5 | ✅ Resuelta: aviso de actualización (IT-22) y firma de Ajustes `Maintained with ♥ by Nonit0` (IT-23) apuntan a `Nonit0/Spotui` | `SettingsPref.kt:36`, `SettingsScreen.kt:834-839` | IT-22, IT-23 |
 | D6 | **Credenciales en el backup de Google**: `backup_rules.xml` incluye todas las prefs y `data_extraction_rules.xml` no tiene reglas (Android 12+ copia todo) | `res/xml/`, `data/preferences/*` | IT-29, IT-30 |
 | D7 | Reproductor web de Spotify desactivado pero presente | `di/SpotifyWebPlayer.kt`, `ui/notification/WebMediaPlayer.kt` | S3 |
 | D8 | Release sin minificar (`isMinifyEnabled = false`) → APK de ~100 MB | `app/build.gradle.kts` | S4 |

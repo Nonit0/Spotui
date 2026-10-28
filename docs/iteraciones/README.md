@@ -64,8 +64,8 @@ Reglas extra de esta fase:
 | [IT-20](IT-20-contexto-base-h4zh4n.md) | Actualizar `CONTEXTO.md` a la base H4zh4n | Reescribir el contexto: módulos, fuentes de audio (lista de prioridad), login de YouTube por WebView, `UpdateChecker` único con URL configurable, tests que existen | Docs | IT-18 | ✅ |
 | IT-21 | Pasar los tests unitarios en Android Studio | El usuario los lanza (`:app`, `:spotify`, `:innertube`) y se apunta qué pasa y qué falla. `ProviderStreamTest` usa red: se espera que falle o tarde | Verificación | IT-18 | ⏳ pendiente (la lanza el usuario) |
 | [IT-22](IT-22-actualizaciones-a-nonit0.md) | Apuntar las actualizaciones a `Nonit0/Spotui` | `DEFAULT_UPDATE_REPO_URL` (`SettingsPref.kt:36`) → `https://github.com/Nonit0/Spotui`. Sustituye a IT-09/IT-13. Sin avisos hasta la 1ª release del fork | Código | — | ✅ |
-| IT-23 | Enlace "GitHub" de Ajustes a tu fork | `SettingsScreen.kt:839` abre `H4zh4n/Spotui`. Pregunta: ¿tu fork, o se deja el original por créditos? | Código | — | ⏳ **siguiente** |
-| IT-24 | Renombrar `LibraryScreeen.kt` → `LibraryScreen.kt` | Igual que IT-05: renombrar el fichero, sin tocar código | Código | — | ⏳ |
+| [IT-23](IT-23-firma-ajustes-nonit0.md) | Firma de Ajustes a `Nonit0` | `SettingsScreen.kt:834-839`: `Maintained with ♥ by Hazhan Salih` → `by Nonit0`, enlace a tu fork. Créditos a H4zh4n van al README (S10) | Código | — | ✅ |
+| IT-24 | Renombrar `LibraryScreeen.kt` → `LibraryScreen.kt` | Igual que IT-05: renombrar el fichero, sin tocar código | Código | — | ⏳ **siguiente** |
 | IT-25 | Borrar los tests de plantilla | Igual que IT-06: `ExampleUnitTest.kt` y `ExampleInstrumentedTest.kt` | Código | IT-21 | ⏳ |
 | IT-26 | Quitar `runBlocking` de `PoTokenGenerator` | Igual que IT-11 (`PoTokenGenerator.kt:40`): hacerlo `suspend`. Antes se revisan las llamadas, que pueden haber cambiado respecto a IT-08 | Código | — | ⏳ |
 | IT-27 | Sacar la comparación de canciones de `SongPlayer` a `TrackMatcher.kt` | Igual que IT-14, pero ahora el bloque está en `SongPlayer.kt` ~l.1625-1838 (el fichero tiene 2612 líneas) | Código | — | ⏳ |
@@ -102,7 +102,7 @@ Se convierten en iteración solo si el usuario lo pide. Los IDs no se renumeran:
 | S6 | Cifrar credenciales | 🚫 Descartada en favor de IT-16 (ver su §5) |
 | S7 | Caché de 6 h / `force` en `data/update` | Pendiente, ligada a IT-09 |
 | S9 | Aviso de Home apunta a `Spotui/Spotui` | ✅ Resuelta en IT-13 (fase 1); en la fase 2 → IT-22 |
-| S10 | Actualizar `README.md` para tu fork (funciones, enlaces, créditos a H4zh4n) | Fase 2, después de IT-20 |
+| S10 | Actualizar `README.md` para tu fork (funciones, enlaces, **créditos a H4zh4n: confirmado por el usuario en IT-23**) | Fase 2, después de IT-20 |
 | S11 | `ProviderStreamTest` usa red: separarlo o marcarlo para que no corra por defecto | Fase 2, según el resultado de IT-21 |
 | S12 | La release se firma con `app/debug.keystore`, que está en git (contraseña `android`): ¿clave propia fuera de git? | Fase 2, hallazgo de IT-20 |
 
