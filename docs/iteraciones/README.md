@@ -83,6 +83,7 @@ Reglas extra de esta fase:
 | [IT-39](IT-39-crear-playlists-en-spotify.md) | Crear las playlists nuevas en Spotify | Biblioteca y "Saved in" crean en Spotify (`SpotifySync.createPlaylist`); local con aviso si falla | Código | — | ✅ (completada en IT-40) |
 | [IT-40](IT-40-crear-playlists-via-spclient.md) | Crear las playlists en Spotify como el reproductor web | `createPlaylist` por spclient playlist/v2 (crear + rootlist) en vez de `me/playlists` (429); sin esperas | Código | IT-39 | ✅ |
 | [IT-41](IT-41-cancion-actual-por-posicion.md) | La canción que suena se localiza por posición, no por id | S20: `CurrentSongState.positionIn` (usa `songIndex`); arregla cola, carrusel y siguiente/anterior con canciones repetidas | Código | IT-37 | ✅ |
+| [IT-42](IT-42-resaltar-solo-copia-que-suena.md) | En una playlist solo se resalta la copia que suena | S21: la fila compara id + nº de copia (`playingOccurrence`) | Código | IT-41 | ✅ (pendiente de prueba manual) |
 
 #### Correspondencia fase 1 → fase 2
 
@@ -122,7 +123,7 @@ Se convierten en iteración solo si el usuario lo pide. Los IDs no se renumeran:
 | S18 | **Soulseek** como respaldo FLAC (descartado en IT-32). Si se retoma: versión reducida (opción B de IT-32): paquete `soulseek/` de `archivo/original-1.6`, desactivado por defecto, credenciales fuera del backup, interruptor en Ajustes, solo caché + bajar la siguiente canción desde `prefetch()`. Tiene sentido sobre todo si S16 confirma que los proveedores lossless están caídos | Pendiente (mejora) |
 | S19 | `QueueScreen` con la misma canción dos veces se cerraba (hallazgo de IT-36) | ✅ Resuelta en IT-37 |
 | S20 | La canción que suena se localiza por id (`currentSongId`): si suena la 2.ª copia de una repetida, la cola se dibuja como si sonara la 1.ª. Llevar la posición en el reproductor (hallazgo de IT-37) | ✅ Resuelta en IT-41 |
-| S21 | Las listas (playlist, álbum, búsqueda…) colorean de verde todas las copias de la canción que suena: comparan por id (hallazgo de IT-41) | Pendiente |
+| S21 | Las listas (playlist, álbum, búsqueda…) colorean de verde todas las copias de la canción que suena: comparan por id (hallazgo de IT-41) | ✅ Resuelta en IT-42 |
 
 S3, S4 y S5 siguen vigentes en la base H4zh4n (`SpotifyWebPlayer` sigue ahí y desactivado, y
 `isMinifyEnabled = false`).
