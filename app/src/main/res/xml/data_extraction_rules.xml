@@ -1,19 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?><!--
-   Sample data extraction rules file; uncomment and customize as necessary.
+   Backup and device-transfer rules for Android 12 (API 31) and newer.
    See https://developer.android.com/about/versions/12/backup-restore#xml-changes
-   for details.
+   Only <exclude> is used, so everything else is still backed up / transferred.
 -->
 <data-extraction-rules>
     <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
+        <!-- Login credentials: Spotify sp_dc cookie, Deezer ARL, SpotiFLAC session -->
+        <exclude domain="sharedpref" path="spotify_session.xml"/>
+        <exclude domain="sharedpref" path="Deezer.xml"/>
+        <exclude domain="sharedpref" path="SpotiflacSession.xml"/>
     </cloud-backup>
-    <!--
     <device-transfer>
-        <include .../>
-        <exclude .../>
+        <exclude domain="sharedpref" path="spotify_session.xml"/>
+        <exclude domain="sharedpref" path="Deezer.xml"/>
+        <exclude domain="sharedpref" path="SpotiflacSession.xml"/>
     </device-transfer>
-    -->
 </data-extraction-rules>

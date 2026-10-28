@@ -1,13 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
+   Auto Backup rules for Android 11 (API 30) and older.
    See https://developer.android.com/guide/topics/data/autobackup
-   for details.
-   Note: This file is ignored for devices older that API 31
-   See https://developer.android.com/about/versions/12/backup-restore
+   Android 12+ uses data_extraction_rules.xml instead.
+   Only <exclude> is used, so everything else is still backed up.
 -->
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <!-- Login credentials: Spotify sp_dc cookie, Deezer ARL, SpotiFLAC session -->
+    <exclude domain="sharedpref" path="spotify_session.xml"/>
+    <exclude domain="sharedpref" path="Deezer.xml"/>
+    <exclude domain="sharedpref" path="SpotiflacSession.xml"/>
 </full-backup-content>
