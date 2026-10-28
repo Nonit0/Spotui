@@ -4,7 +4,7 @@
 |---|---|
 | Tipo | Código |
 | Depende de | IT-31 |
-| Estado | ✅ Hecha (2026-10-28) · pendiente de prueba manual |
+| Estado | ✅ Hecha y probada (2026-10-28) |
 
 ## 1. Qué hacer
 Traer `f1631c8` de RMNO21 (rama `archivo/original-1.6`) con cherry-pick, conservando su autoría.
@@ -34,3 +34,4 @@ Probar Deezer sin ARL (no hay forma).
 |---|---|---|---|
 | 2026-10-28 | ✅ Hecha | Cherry-pick sin conflictos. No se ha compilado (lo hace el usuario en Android Studio) | `4500f5c` |
 | 2026-10-28 | ✅ | `:spotify` recompilado con IT-33 e IT-34: `:spotify:test` 19/19 en verde (MatchScore 7 · Performance 12), 21 s. Solo el aviso previo de `readBytes()` obsoleto en `SpotifyCanvas.kt:57` (no viene del parche) | — |
+| 2026-10-28 | ✅ Probada | Prueba manual del usuario en el móvil: "todo funciona" | — |
