@@ -4,7 +4,7 @@
 |---|---|
 | Tipo | Código |
 | Depende de | — |
-| Estado | ✅ Hecha (2026-10-28) · pendiente de prueba manual |
+| Estado | ✅ Hecha y probada (2026-10-28) |
 
 ## 1. Qué hacer
 Que `PlaylistScreen` no se cierre cuando la playlist tiene la misma canción dos veces.
@@ -46,3 +46,4 @@ La playlist privada abre y muestra las canciones repetidas.
 | Fecha | Estado | Resultado real | Commit |
 |---|---|---|---|
 | 2026-10-28 | ✅ Hecha | Cambio de una línea. No compilado aquí (lo hace el usuario en Android Studio) | `35d234d` |
+| 2026-10-28 | ✅ Probada | El usuario: "Pues si que era eso". La playlist abre; la cola sigue cerrándose → IT-37 | — |
