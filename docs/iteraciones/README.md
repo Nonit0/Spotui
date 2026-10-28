@@ -72,8 +72,8 @@ Reglas extra de esta fase:
 | [IT-28](IT-28-tests-track-matcher.md) | Tests unitarios de `TrackMatcher` | 10 tests en `di/TrackMatcherTest.kt` (incluye `explicit`). Ejecutados en IT-21: 10/10 en verde | Código | IT-27 | ✅ |
 | [IT-29](IT-29-credenciales-fuera-del-backup.md) | Sacar las credenciales del backup de Google | `spotify_session`, `Deezer` y `SpotiflacSession` excluidos en `backup_rules.xml` y `data_extraction_rules.xml` (cloud + device-transfer) | Código | — | ✅ |
 | [IT-30](IT-30-cookie-youtube-backup.md) | Mover la cookie de YouTube a su propio fichero y excluirlo del backup | Cerrada sin cambios: las funciones de la cookie no se usan, no hay login de YouTube (`YouTube.cookie = null`). Funciones sin uso → S15 | Análisis | IT-29 | 🚫 |
-| IT-31 | Revisar los 4 commits de RMNO21 contra H4zh4n | Análisis, sin tocar código: ver si `0035218`, `bfe4bdc`, `f1631c8` y `7244e4d` aplican aquí. Cada commit que aplique pasa a ser una iteración propia | Análisis | — | ⏳ **siguiente** |
-| IT-32 | Decidir si se trae Soulseek | Decisión, sin código: solo existe en `Spotui/Spotui` 1.6. Si se trae, se parte en iteraciones antes de empezar | Decisión | IT-31 | ⏳ |
+| [IT-31](IT-31-commits-rmno21.md) | Revisar los 4 commits de RMNO21 contra H4zh4n | 3 aplican limpio; `bfe4bdc` no por `UpdateChecker` (OkHttp en H4zh4n). Bug real: seek en Deezer (`f1631c8`). Qué commits se traen: decisión del usuario | Análisis | — | ✅ |
+| IT-32 | Decidir si se trae Soulseek | Decisión, sin código: solo existe en `Spotui/Spotui` 1.6. Si se trae, se parte en iteraciones antes de empezar | Decisión | IT-31 | ⏳ **siguiente** |
 
 #### Correspondencia fase 1 → fase 2
 
@@ -109,6 +109,7 @@ Se convierten en iteración solo si el usuario lo pide. Los IDs no se renumeran:
 | S14 | Errata en el marcador `clean` (`TrackMatcher.kt:110`): `пensored` lleva una `п` cirílica, así que nunca casa con "censored" (hallazgo de IT-27) | Pendiente |
 | S15 | `getYoutubeCookie`, `setYoutubeCookie`, `isYoutubeLoggedIn` y `KEY_YT_COOKIE` (`SettingsPref.kt:76-85`) no se usan en ningún sitio: borrarlos (hallazgo de IT-30) | Pendiente |
 | S16 | En `ProviderStreamTest` (2026-10-28) solo YouTube Music resuelve (10/10). Amazon falla al instante con `toString(...) must not be null` (¿bug o contexto falso del test?); Qobuz da timeout; TIDAL, Deezer Mirror, SoundCloud y SpotiFLAC no encuentran ninguna canción; Deezer Direct necesita ARL. Investigar cuáles están caídos de verdad (hallazgo de IT-21) | Pendiente |
+| S17 | `UpdateChecker.fetchLatestRelease` (`UpdateChecker.kt:58-59`) no cierra el `response` de OkHttp cuando no es 2xx: usar `use {}` (hallazgo de IT-31) | Pendiente |
 
 S3, S4 y S5 siguen vigentes en la base H4zh4n (`SpotifyWebPlayer` sigue ahí y desactivado, y
 `isMinifyEnabled = false`).
