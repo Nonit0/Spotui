@@ -66,13 +66,13 @@ Reglas extra de esta fase:
 | [IT-22](IT-22-actualizaciones-a-nonit0.md) | Apuntar las actualizaciones a `Nonit0/Spotui` | `DEFAULT_UPDATE_REPO_URL` (`SettingsPref.kt:36`) → `https://github.com/Nonit0/Spotui`. Sustituye a IT-09/IT-13. Sin avisos hasta la 1ª release del fork | Código | — | ✅ |
 | [IT-23](IT-23-firma-ajustes-nonit0.md) | Firma de Ajustes a `Nonit0` | `SettingsScreen.kt:834-839`: `Maintained with ♥ by Hazhan Salih` → `by Nonit0`, enlace a tu fork. Créditos a H4zh4n van al README (S10) | Código | — | ✅ |
 | [IT-24](IT-24-renombrar-library-screen.md) | Renombrar `LibraryScreeen.kt` → `LibraryScreen.kt` | Igual que IT-05: renombrar el fichero, sin tocar código | Código | — | ✅ |
-| IT-25 | Borrar los tests de plantilla | Igual que IT-06: `ExampleUnitTest.kt` y `ExampleInstrumentedTest.kt` | Código | IT-21 | ⏳ |
+| [IT-25](IT-25-borrar-tests-plantilla.md) | Borrar los tests de plantilla | Igual que IT-06: `ExampleUnitTest.kt` y `ExampleInstrumentedTest.kt` borrados, `androidTest/` se mantiene con `.gitkeep` | Código | IT-21 | ✅ |
 | [IT-26](IT-26-potoken-runblocking.md) | Quitar `runBlocking` de `PoTokenGenerator` | Cerrada sin cambios: en H4zh4n el `runBlocking` ya tiene tiempo límite y corre en un `CompletableFuture`; hacerlo `suspend` obliga a tocar `YTPlayerUtils`. Riesgo de bloqueo de hilos → S13 | Análisis | — | 🚫 |
 | [IT-27](IT-27-extraer-track-matcher.md) | Sacar la comparación de canciones de `SongPlayer` a `TrackMatcher.kt` | Igual que IT-14; movido sin cambios (l.1625-1838 + `featSearchPattern`). `SongPlayer.kt` 2612 → 2397 líneas | Código | — | ✅ |
 | [IT-28](IT-28-tests-track-matcher.md) | Tests unitarios de `TrackMatcher` | 10 tests en `di/TrackMatcherTest.kt` (incluye `explicit`). Ejecutados en IT-21: 10/10 en verde | Código | IT-27 | ✅ |
 | [IT-29](IT-29-credenciales-fuera-del-backup.md) | Sacar las credenciales del backup de Google | `spotify_session`, `Deezer` y `SpotiflacSession` excluidos en `backup_rules.xml` y `data_extraction_rules.xml` (cloud + device-transfer) | Código | — | ✅ |
 | [IT-30](IT-30-cookie-youtube-backup.md) | Mover la cookie de YouTube a su propio fichero y excluirlo del backup | Cerrada sin cambios: las funciones de la cookie no se usan, no hay login de YouTube (`YouTube.cookie = null`). Funciones sin uso → S15 | Análisis | IT-29 | 🚫 |
-| IT-31 | Revisar los 4 commits de RMNO21 contra H4zh4n | Análisis, sin tocar código: ver si `0035218`, `bfe4bdc`, `f1631c8` y `7244e4d` aplican aquí. Cada commit que aplique pasa a ser una iteración propia | Análisis | — | ⏳ **siguiente** (en pausa: el usuario prueba la app) |
+| IT-31 | Revisar los 4 commits de RMNO21 contra H4zh4n | Análisis, sin tocar código: ver si `0035218`, `bfe4bdc`, `f1631c8` y `7244e4d` aplican aquí. Cada commit que aplique pasa a ser una iteración propia | Análisis | — | ⏳ **siguiente** |
 | IT-32 | Decidir si se trae Soulseek | Decisión, sin código: solo existe en `Spotui/Spotui` 1.6. Si se trae, se parte en iteraciones antes de empezar | Decisión | IT-31 | ⏳ |
 
 #### Correspondencia fase 1 → fase 2
