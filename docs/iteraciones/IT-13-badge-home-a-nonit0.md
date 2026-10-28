@@ -4,7 +4,7 @@
 |---|---|
 | Tipo | Código |
 | Depende de | — |
-| Estado | ⏳ Pendiente |
+| Estado | ✅ Hecha (2026-10-28) |
 
 ## 1. Qué hacer
 En `app/src/main/java/com/music/spotui/data/api/UpdateChecker.kt`, cambiar las 2 constantes de
@@ -17,9 +17,9 @@ Motivo: ahora mismo, si el original publica una 1.7, tu app avisa y manda a **su
 Es el mismo cambio de repo que se hará en IT-09, pero en el otro fichero: no se solapan.
 
 ## 2. Preguntar al usuario (antes de empezar)
-- [ ] ¿Lo cambio? (hasta tu primera release, el aviso de Home quedará en silencio)
+- [x] ¿Lo cambio? (hasta tu primera release, el aviso de Home quedará en silencio)
 
-> Respuesta del usuario: _(rellenar)_
+> Respuesta del usuario: "Realmente deberíamos cambiarlo, no por nada; al final es código open source, si instalan mi versión es porque les ha gustado, nada más."
 
 ## 3. Salida esperada
 - `assembleDebug testDebugUnitTest` → `BUILD SUCCESSFUL` (`UpdateCheckerTest` no depende de la URL).
@@ -39,3 +39,7 @@ Es el mismo cambio de repo que se hará en IT-09, pero en el otro fichero: no se
 ## 7. Registro
 | Fecha | Estado | Resultado real | Commit |
 |---|---|---|---|
+| 2026-10-28 | ✅ Hecha | `assembleDebug testDebugUnitTest` → `BUILD SUCCESSFUL`, 20 tests, 0 fallos. `grep "Spotui/Spotui" data/api/` → sin resultados. Diff: 1 fichero, 2+/2− | `e663ac5` |
+
+**Efecto:** hasta que publiques tu primera release en `Nonit0/Spotui`, el aviso de Home no muestra nada (la API devuelve 404 y se ignora). Después avisará de **tus** versiones (tag `vX.Y`).
+**Queda apuntando al original:** solo `data/update/UpdateChecker.kt` (el diálogo del arranque), que ya no avisa nunca (tag `Release` parado en 1.2.1) → IT-09.

@@ -39,8 +39,8 @@ Contexto de la app: [`../CONTEXTO.md`](../CONTEXTO.md). Plantilla: [`PLANTILLA.m
 | [IT-08](IT-08-analizar-runblocking-potoken.md) | Analizar el `runBlocking` del PoToken (sin cambiar código) | Análisis | — | ✅ |
 | [IT-11](IT-11-potoken-suspend.md) | Quitar `runBlocking` de `PoTokenGenerator` (hacerlo `suspend`) | Código | IT-08 | ✅ (falta prueba manual) |
 | [IT-12](IT-12-tests-modulo-spotify.md) | Ejecutar los tests de `:spotify` | Verificación | IT-01 | ✅ |
-| [IT-13](IT-13-badge-home-a-nonit0.md) | Apuntar el aviso de Home a `Nonit0/Spotui` | Código | — | ⏳ **siguiente** |
-| [IT-14](IT-14-extraer-track-matcher.md) | Sacar la comparación de canciones de `SongPlayer` a `TrackMatcher.kt` | Código | — | ⏳ |
+| [IT-13](IT-13-badge-home-a-nonit0.md) | Apuntar el aviso de Home a `Nonit0/Spotui` | Código | — | ✅ |
+| [IT-14](IT-14-extraer-track-matcher.md) | Sacar la comparación de canciones de `SongPlayer` a `TrackMatcher.kt` | Código | — | ⏳ **siguiente** |
 | [IT-15](IT-15-tests-track-matcher.md) | Tests unitarios de `TrackMatcher` | Código | IT-14 | ⏳ |
 | [IT-16](IT-16-credenciales-fuera-del-backup.md) | Sacar la cookie de YouTube y Soulseek del backup de Google | Código | — | ⏳ |
 
@@ -57,4 +57,4 @@ Se convierten en iteración solo si el usuario lo pide. Los IDs no se renumeran:
 | S5 | Subir dependencias / AGP (quita avisos de D8) | Pendiente: una dependencia por iteración |
 | S6 | Cifrar credenciales | 🚫 Descartada en favor de IT-16 (ver su §5) |
 | S7 | Caché de 6 h / `force` en `data/update` | Pendiente, ligada a IT-09 |
-| S9 | Aviso de Home apunta a `Spotui/Spotui` | → IT-13 |
+| S9 | Aviso de Home apunta a `Spotui/Spotui` | ✅ Resuelta en IT-13 |
