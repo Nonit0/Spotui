@@ -3,6 +3,7 @@ package com.music.spotui.data.api
 import android.content.Context
 import android.util.Log
 import com.metrolist.spotify.Spotify
+import com.metrolist.spotify.models.SpotifyPlaylist
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -86,23 +87,26 @@ object SpotifySync {
         }
     }
 
-    /** Creates a new playlist on Spotify and adds the track to it. */
-    fun createPlaylistWithTrack(context: Context, name: String, trackId: String, public: Boolean = false, onDone: (Boolean) -> Unit = {}) {
-        if (name.isBlank()) { onDone(false); return }
-        val app = context.applicationContext
-        scope.launch {
-            if (!SpotifyTokenProvider.ensureToken(app)) { onDone(false); return@launch }
-            val playlist = Spotify.createPlaylist(name, public).getOrNull()
-            if (playlist == null || playlist.id.isBlank()) {
-                Log.w(TAG, "createPlaylist '$name' failed"); onDone(false); return@launch
-            }
-            val ok = trackId.isBlank() ||
-                Spotify.addTracksToPlaylist(playlist.id, listOf("spotify:track:$trackId")).isSuccess
-            if (ok && trackId.isNotBlank()) {
-                membershipCache[playlist.id] = java.util.concurrent.ConcurrentHashMap.newKeySet<String>().apply { add(trackId) }
-            }
-            onDone(ok)
+    /** Creates a new playlist on Spotify itself, adding [trackId] to it when given.
+     *  Returns the playlist, or null when it could not be created (no session,
+     *  network or Spotify error) so the caller can fall back to a local one. */
+    suspend fun createPlaylist(context: Context, name: String, trackId: String = "", public: Boolean = false): SpotifyPlaylist? {
+        if (name.isBlank()) return null
+        if (!SpotifyTokenProvider.ensureToken(context.applicationContext)) return null
+        val playlist = Spotify.createPlaylist(name, public).getOrNull()
+        if (playlist == null || playlist.id.isBlank()) {
+            Log.w(TAG, "createPlaylist '$name' failed"); return null
         }
+        membershipCache[playlist.id] = ConcurrentHashMap.newKeySet<String>()
+        if (trackId.isNotBlank()) {
+            if (Spotify.addTracksToPlaylist(playlist.id, listOf("spotify:track:$trackId")).isSuccess) {
+                membershipCache[playlist.id]?.add(trackId)
+            } else {
+                Log.w(TAG, "created playlist ${playlist.id} but failed adding track $trackId")
+            }
+        }
+        Api.HomeCache.library = null
+        return playlist
     }
 
     // ── Playlist membership (which playlists contain a track) ──

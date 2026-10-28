@@ -72,7 +72,7 @@ private val SpotifyGreen = Color(0xFF1ED760)
 
 /**
  * Spotify-style "Saved in" sheet: Liked Songs plus local playlists and Spotify user playlists.
- * Allows toggling tracks into/out of playlists and creating new local playlists stored on device.
+ * Allows toggling tracks into/out of playlists and creating new ones on Spotify (local on device if that fails).
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalGlideComposeApi::class)
 @Composable
@@ -120,13 +120,23 @@ fun SavedInSheet(
         val name = newName.trim().ifBlank { "My Playlist" }
         isCreatingPlaylist = true
         newName = ""
-        val created = LocalPlaylistPref.createPlaylist(context, name, song)
-        localPlaylists = LocalPlaylistPref.getLocalPlaylists(context)
-        membership[created.id] = true
-        Api.HomeCache.library = null
-        android.widget.Toast.makeText(context, "Playlist '$name' created", android.widget.Toast.LENGTH_SHORT).show()
-        creating = false
-        isCreatingPlaylist = false
+        scope.launch {
+            // On Spotify itself first; a local playlist only if that fails.
+            val remote = if (song.spotifyTrackId.isBlank()) null
+                else withContext(Dispatchers.IO) { SpotifySync.createPlaylist(context, name, song.spotifyTrackId) }
+            if (remote != null) {
+                remotePlaylists = listOf(remote) + remotePlaylists.orEmpty()
+                android.widget.Toast.makeText(context, "Playlist '$name' created on Spotify", android.widget.Toast.LENGTH_SHORT).show()
+            } else {
+                val created = LocalPlaylistPref.createPlaylist(context, name, song)
+                localPlaylists = LocalPlaylistPref.getLocalPlaylists(context)
+                membership[created.id] = true
+                Api.HomeCache.library = null
+                android.widget.Toast.makeText(context, "Couldn't reach Spotify — '$name' created as a local playlist", android.widget.Toast.LENGTH_SHORT).show()
+            }
+            creating = false
+            isCreatingPlaylist = false
+        }
     }
 
     ModalBottomSheet(

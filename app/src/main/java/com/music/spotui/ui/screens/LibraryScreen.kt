@@ -63,6 +63,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -89,6 +90,7 @@ import com.bumptech.glide.integration.compose.GlideImage
 import com.music.spotui.R
 import com.music.spotui.data.api.Api
 import com.music.spotui.data.api.Response
+import com.music.spotui.data.api.SpotifySync
 import com.music.spotui.data.entity.LibraryEntry
 import com.music.spotui.data.preferences.LocalPlaylistPref
 import com.music.spotui.data.preferences.isLibraryGridView
@@ -98,6 +100,9 @@ import com.music.spotui.ui.navigation.Routes
 import com.music.spotui.ui.navigation.albumRoute
 import com.music.spotui.ui.navigation.artistRoute
 import com.music.spotui.ui.navigation.playlistRoute
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.music.spotui.ui.theme.AppBackground
 import com.music.spotui.ui.viewmodel.LibraryFilterType
 import com.music.spotui.ui.viewmodel.LibraryViewModel
@@ -241,13 +246,15 @@ fun LibraryScreen(navController: NavController) {
 
     var gridView by remember { mutableStateOf(isLibraryGridView(context)) }
     var showCreateDialog by remember { mutableStateOf(false) }
+    var isCreatingPlaylist by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     if (showCreateDialog) {
         var playlistNameInput by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { showCreateDialog = false },
             containerColor = Color(0xFF282828),
-            title = { Text("Create Local Playlist", color = Color.White, fontWeight = FontWeight.Bold) },
+            title = { Text("Create Playlist", color = Color.White, fontWeight = FontWeight.Bold) },
             text = {
                 TextField(
                     value = playlistNameInput,
@@ -276,12 +283,24 @@ fun LibraryScreen(navController: NavController) {
                     fontSize = 15.sp,
                     modifier = Modifier
                         .clickable {
+                            if (isCreatingPlaylist) return@clickable
+                            isCreatingPlaylist = true
                             val name = playlistNameInput.trim().ifBlank { "My Playlist" }
-                            val created = LocalPlaylistPref.createPlaylist(context, name)
-                            Api.HomeCache.library = null
-                            libraryViewModel.load()
-                            showCreateDialog = false
-                            navController.navigate(playlistRoute(created.id, created.name))
+                            scope.launch {
+                                // On Spotify itself first; a local playlist only if that fails.
+                                val remote = withContext(Dispatchers.IO) { SpotifySync.createPlaylist(context, name) }
+                                val (id, title) = if (remote != null) {
+                                    remote.id to remote.name
+                                } else {
+                                    android.widget.Toast.makeText(context, "Couldn't reach Spotify — '$name' created as a local playlist", android.widget.Toast.LENGTH_SHORT).show()
+                                    LocalPlaylistPref.createPlaylist(context, name).let { it.id to it.name }
+                                }
+                                Api.HomeCache.library = null
+                                libraryViewModel.load()
+                                isCreatingPlaylist = false
+                                showCreateDialog = false
+                                navController.navigate(playlistRoute(id, title))
+                            }
                         }
                         .padding(8.dp)
                 )
