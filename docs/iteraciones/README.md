@@ -61,8 +61,8 @@ Reglas extra de esta fase:
 |---|---|---|---|---|---|
 | [IT-18](IT-18-base-h4zh4n-compila.md) | Traer H4zh4n a `base-h4zh4n` y comprobar que compila | — | Verificación | — | ✅ |
 | [IT-19](IT-19-agp-9-4-1.md) | Subir el AGP de 9.2.1 a 9.4.1 | — | Código | IT-18 | ✅ |
-| IT-20 | Actualizar `CONTEXTO.md` a la base H4zh4n | Reescribir el contexto: módulos, fuentes de audio (lista de prioridad), login de YouTube por WebView, `UpdateChecker` único con URL configurable, tests que existen | Docs | IT-18 | ⏳ **siguiente** |
-| IT-21 | Pasar los tests unitarios en Android Studio | El usuario los lanza (`:app`, `:spotify`, `:innertube`) y se apunta qué pasa y qué falla. `ProviderStreamTest` usa red: se espera que falle o tarde | Verificación | IT-18 | ⏳ |
+| [IT-20](IT-20-contexto-base-h4zh4n.md) | Actualizar `CONTEXTO.md` a la base H4zh4n | Reescribir el contexto: módulos, fuentes de audio (lista de prioridad), login de YouTube por WebView, `UpdateChecker` único con URL configurable, tests que existen | Docs | IT-18 | ✅ |
+| IT-21 | Pasar los tests unitarios en Android Studio | El usuario los lanza (`:app`, `:spotify`, `:innertube`) y se apunta qué pasa y qué falla. `ProviderStreamTest` usa red: se espera que falle o tarde | Verificación | IT-18 | ⏳ **siguiente** |
 | IT-22 | Apuntar las actualizaciones a `Nonit0/Spotui` | `DEFAULT_UPDATE_REPO_URL` (`SettingsPref.kt:36`) → `https://github.com/Nonit0/Spotui`. Sustituye a IT-09/IT-13. Pregunta: ¿esperamos a la 1ª release de tu fork? Sin release el aviso no saldrá nunca | Código | — | ⏳ |
 | IT-23 | Enlace "GitHub" de Ajustes a tu fork | `SettingsScreen.kt:839` abre `H4zh4n/Spotui`. Pregunta: ¿tu fork, o se deja el original por créditos? | Código | — | ⏳ |
 | IT-24 | Renombrar `LibraryScreeen.kt` → `LibraryScreen.kt` | Igual que IT-05: renombrar el fichero, sin tocar código | Código | — | ⏳ |
@@ -104,6 +104,7 @@ Se convierten en iteración solo si el usuario lo pide. Los IDs no se renumeran:
 | S9 | Aviso de Home apunta a `Spotui/Spotui` | ✅ Resuelta en IT-13 (fase 1); en la fase 2 → IT-22 |
 | S10 | Actualizar `README.md` para tu fork (funciones, enlaces, créditos a H4zh4n) | Fase 2, después de IT-20 |
 | S11 | `ProviderStreamTest` usa red: separarlo o marcarlo para que no corra por defecto | Fase 2, según el resultado de IT-21 |
+| S12 | La release se firma con `app/debug.keystore`, que está en git (contraseña `android`): ¿clave propia fuera de git? | Fase 2, hallazgo de IT-20 |
 
 S3, S4 y S5 siguen vigentes en la base H4zh4n (`SpotifyWebPlayer` sigue ahí y desactivado, y
 `isMinifyEnabled = false`).

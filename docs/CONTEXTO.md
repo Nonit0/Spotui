@@ -1,48 +1,64 @@
 # Contexto de Spotui
 
 > Documento de referencia para cualquier persona o agente que vaya a trabajar en el repo.
-> Repo de trabajo: **`Nonit0/Spotui`** (fork de `Spotui/Spotui`, todavía sin releases propias).
-> Estado descrito: rama `main`, commit `2502236` (versión **1.6**, `versionCode 16`), 28-10-2026.
+> Repo de trabajo: **`Nonit0/Spotui`**, todavía sin releases propias.
+> Base de código: **`H4zh4n/Spotui`** 1.5.0 (commit `9180164`, `versionCode 202608150`), rama
+> `base-h4zh4n` (ver IT-18). La base anterior (`Spotui/Spotui` 1.6) está archivada en la rama
+> `archivo/original-1.6`. Estado descrito: 28-10-2026.
 
 ## 1. Qué es
 
 Spotui es un **clon de Spotify para Android** hecho con **Kotlin + Jetpack Compose**.
 Se conecta a la cuenta real de Spotify del usuario para obtener **metadatos** (playlists,
 álbumes, artistas, letras, recomendaciones, biblioteca, likes), pero **el audio no sale de
-Spotify**: se resuelve en tiempo de reproducción desde otras fuentes (Deezer, servidores
-lossless comunitarios, Soulseek, YouTube Music o archivos locales).
-
-Proyecto educativo (ver `README.md`). Deriva de Neptune (UI original), Meld (capa
-Spotify + YouTube), SpotiFLAC (FLAC) y SimpMusic (crossfade).
+Spotify**: se resuelve en tiempo de reproducción desde otras fuentes (Deezer, SpotiFLAC, Amazon,
+Qobuz, TIDAL, SoundCloud, YouTube Music o archivos locales), en un orden que el usuario puede
+cambiar.
 
 ## 2. Stack técnico
 
 | Pieza | Tecnología |
 |---|---|
-| Lenguaje | Kotlin 2.2.0, JVM 17 |
-| UI | Jetpack Compose (BOM 2024.06), Material 3, Navigation Compose |
-| DI | Hilt 2.57.1 (KSP) |
-| Reproducción | Media3 / ExoPlayer 1.3.1 (+ DASH, UI, Session) |
-| Red | OkHttp 4.12, `HttpURLConnection`, kotlinx.serialization |
+| Lenguaje | Kotlin 2.4.0, JVM 17 |
+| UI | Jetpack Compose (BOM 2026.06.01), Material 3, Navigation Compose |
+| DI | Hilt 2.60.1 (KSP 2.3.10) |
+| Reproducción | Media3 / ExoPlayer 1.10.1 (+ DASH, UI, Session) |
+| Red | OkHttp 5.4.0, kotlinx.serialization, coroutines 1.11.0 |
 | Imágenes | Glide Compose, Palette |
-| Persistencia | **Solo `SharedPreferences`** (18 ficheros `*Pref.kt`), sin Room ni DataStore |
-| Build | Gradle KTS, AGP 8.4.2, `compileSdk/targetSdk 34`, `minSdk 26`, `isMinifyEnabled = false` |
+| Persistencia | **Solo `SharedPreferences`** (21 ficheros en `data/preferences/`), sin Room ni DataStore |
+| Build | Gradle 9.6.1 (KTS + `gradle/libs.versions.toml`), AGP 9.4.1 (IT-19), `compileSdk/targetSdk 37`, `minSdk 26`, `isMinifyEnabled = false` |
 
 ## 3. Módulos
 
 ```
 :app        → la aplicación (com.music.spotui) + utilidades YouTube portadas (com.metrolist.music.utils)
-:spotify    → cliente web de Spotify (Spotify.kt, SpotifyAuth, SpotifyCanvas, SpotiFlac)
-:innertube  → cliente InnerTube de YouTube/YouTube Music (+ partes de NewPipe extractor)
+:spotify    → cliente web de Spotify (Spotify.kt, SpotifyAuth, SpotifyMapper, SpotifyCanvas, SpotiFlac)
+:innertube  → cliente InnerTube de YouTube/YouTube Music
 ```
+
+Paquetes principales de `:app`:
+
+| Paquete | Qué hay |
+|---|---|
+| `di/` | `SongPlayer.kt` (motor de reproducción, ~2600 líneas), `SpotifyWebPlayer.kt` (desactivado) |
+| `providers/` | Un proveedor de audio por fichero: Amazon, Deezer, Qobuz, SoundCloud, TIDAL + búsqueda y *override* manual de coincidencias |
+| `lossless/`, `deezer/` | SpotiFLAC (FLAC comunitario) y descifrado/sesión de Deezer |
+| `audio/` | Crossfade, `ResilientPlaybackDataSource`, `ProviderHealthChecker`, parser de bitrate FLAC |
+| `lyrics/` | Letras de KuGou y LRCLIB (además de las de Spotify) |
+| `data/api/` | `Api.kt` (capa sobre `:spotify`), `SpotifySession` (cookie `sp_dc`) |
+| `data/update/` | `UpdateChecker` (único) |
+| `data/recommendation/` | `SpotifyRecommendationEngine` (radio/autoplay) |
+| `ui/` | Pantallas Compose, navegación, `PlaybackService` |
 
 ## 4. Cómo funciona
 
-### 4.1 Arranque y onboarding (`ui/navigation/MyNavHost.kt`)
+### 4.1 Arranque (`ui/navigation/MyNavHost.kt`)
 1. Si no hay cookie `sp_dc` de Spotify → pantalla **Login** (`SpotifyLoginScreen`, WebView).
-2. Si no hay fuente musical elegida → **MusicSource** (YouTube Music o Deezer).
-3. Si eligió YouTube Music y no ha iniciado sesión en YouTube → **MusicSource** otra vez.
-4. Si no → **Home**. Se restaura la última pista en el mini‑player (pausada).
+2. Si no → **Home**. Se restaura la última pista y la cola en el mini‑player (pausada).
+
+No hay pantalla de elegir fuente: las fuentes se ordenan y activan en **Ajustes**. Deezer tiene su
+propia introducción y login (`DeezerIntroScreen`, `DeezerLoginScreen`) y SpotiFLAC una pantalla de
+verificación (`SpotiflacVerifyScreen`).
 
 ### 4.2 Capa de datos
 `ViewModel` → `AppRepository` → `Api` (`data/api/Api.kt`) → módulo `:spotify`.
@@ -50,62 +66,78 @@ Spotify + YouTube), SpotiFLAC (FLAC) y SimpMusic (crossfade).
 Cada canción lleva en `SongsModel.url` una **clave de reproducción** (`spotify:track:<id>` +
 "título artista"), no una URL de stream.
 
-### 4.3 Reproducción (`di/SongPlayer.kt`, ~1800 líneas, `object` singleton)
-`resolveStreamUrl()` recorre una cadena de fuentes en este orden:
+### 4.3 Reproducción (`di/SongPlayer.kt`, `object` singleton)
+`resolveStreamUrl()` (l.774) prueba, en este orden:
 
-1. **Archivo local** (`content://` / `file://`) o **alternativa** fijada por el usuario.
-2. **Descarga offline** si la pista está descargada.
-3. Caché de streams ya resueltos (respetando la fuente elegida).
-4. **Soulseek** cacheado (FLAC ya bajado).
-5. **Deezer** (si hay ARL): FLAC/MP3 320 se usa; MP3 de cuenta free se "guarda" como plan B.
-6. **Lossless** (`lossless/`): SpotiFLAC/Tidal/Qobuz/Amazon por ISRC vía proxies comunitarios.
-7. **Soulseek** P2P en segundo plano (solo como *upgrade*, puede tardar ~1 min).
-8. Deezer MP3 guardado → **YouTube** como último recurso (con scoring título/artista/duración/explicit).
+1. Resolución que ya esté en curso para la misma canción (p. ej. un prefetch) → la reutiliza.
+2. Caché en memoria de la sesión y **caché persistente en disco** (las URLs de YouTube guardan su
+   caducidad).
+3. **Alternativa** fijada por el usuario (archivo local o enlace de YouTube).
+4. **Descarga offline**, si la pista está descargada.
+5. **Proveedores en el orden de Ajustes** (`getAudioProviderOrder`, `SettingsPref.kt:151`). Por
+   defecto: Deezer → SpotiFLAC → Amazon → Qobuz → TIDAL → SoundCloud → YouTube Music. Cada uno se
+   puede desactivar (`getDisabledAudioProviders`).
 
-Extras: *quick start then upgrade* (empieza con algo rápido y cambia a FLAC sin cortes),
-prefetch de vecinas de la cola, caché de medios de ExoPlayer, crossfade (`audio/`),
-badge de fuente y calidad en pantalla.
+YouTube compara candidatos por título, artista, duración y explicit (bloque de puntuación en
+`SongPlayer.kt` ~l.1625-1838). Extras: prefetch de las siguientes de la cola, caché de medios de
+ExoPlayer, crossfade (`audio/`), badge de fuente y calidad, calidad distinta por Wi‑Fi y datos.
 
-### 4.4 Servicio y sistema
-`PlaybackService` (MediaLibraryService de Media3) da notificación, pantalla de bloqueo y
+### 4.4 Cuentas y credenciales
+| Cuenta | Dónde se guarda |
+|---|---|
+| Spotify (`sp_dc`) | `spotify_session.xml` (`data/api/SpotifySession.kt`) |
+| YouTube (cookie, login por WebView, opcional) | `settings_prefs.xml`, clave `youtube_cookie` (`SettingsPref.kt:82`) |
+| Deezer (ARL) | `Deezer.xml` |
+| SpotiFLAC | `SpotiflacSession.xml` |
+
+Sin cifrar y, hoy, **todas entran en el backup de Google** (ver D6).
+
+### 4.5 Servicio y sistema
+`PlaybackService` (`MediaLibraryService` de Media3) da notificación, pantalla de bloqueo y
 **Android Auto**. `SpotifyWebPlayer` (reproductor web de Spotify en WebView) existe pero está
-**desactivado** (`webPlayerEnabled = false`, comentado como "roto").
+**desactivado** (`webPlayerEnabled = false`, `SongPlayer.kt:187`).
 
-### 4.5 Funcionalidades visibles
-Home, Buscar, Biblioteca, Álbum, Artista, Playlist (crear/añadir/quitar, sincronizado), Podcasts
-(Show), Cola (con *swipe to queue*), Me gusta, Historial, Descargas (incl. FLAC remuxado),
-Archivos locales, Letras sincronizadas con traducción, Canvas (vídeo en bucle), Ajustes
-(calidad por Wi‑Fi/datos, crossfade, fuentes), aviso de actualización desde GitHub.
+### 4.6 Funcionalidades visibles
+Home, Buscar, Biblioteca, Álbum, Artista (y lanzamientos), Categorías, Playlist
+(crear/añadir/quitar, sincronizado), Podcasts (Show), Cola, Me gusta, Historial, Descargas
+(incl. FLAC), Archivos locales, Letras sincronizadas con traducción, Canvas, Ajustes (calidad,
+crossfade, orden de fuentes, URL del repo de actualizaciones) y aviso de actualización desde
+GitHub.
+
+### 4.7 Actualizaciones
+Un solo `UpdateChecker` (`data/update/`) que consulta `api.github.com/repos/<repo>/releases/latest`.
+El repo es configurable en Ajustes; por defecto `https://github.com/H4zh4n/Spotui`
+(`DEFAULT_UPDATE_REPO_URL`, `SettingsPref.kt:36`) → IT-22.
 
 ## 5. Estado actual (diagnóstico)
 
 **Fortalezas**
-- Cadena de fuentes muy completa y con *fallbacks* razonados y comentados.
+- Fuentes de audio modulares (`providers/`) con orden y activación configurables por el usuario.
+- Cachés de streams en memoria y en disco, y prefetch de la cola.
 - Comentarios de código abundantes que explican el *porqué*.
-- Firma de release fija vía `keystore.properties` (fuera de git).
+- Dependencias recientes (2026).
 
 **Deuda / riesgos detectados**
-| # | Hallazgo | Dónde |
-|---|---|---|
-| D1 | **Dos `UpdateChecker` distintos** y ambos en uso, con endpoints distintos. El de `data/update` consulta el tag fijo `Release`, congelado en 1.2.1 → **el diálogo de actualización no avisa desde la 1.3** (comprobado 28-10-2026) | `data/api/UpdateChecker.kt` (usado en `HomeScreen`), `data/update/UpdateChecker.kt` (usado en `UpdatePrompt`) |
-| D2 | `SongPlayer.kt` es un *god object* (resolución, crossfade, swap, caché). La comparación de canciones ya está en `TrackMatcher.kt` (IT-14): 1810 → 1602 líneas | `di/SongPlayer.kt` |
-| D3 | ~~`runBlocking` en generación de PoToken~~ → corregido en IT-11 (ahora `suspend`; los tiempos límite de 15/45 s ya pueden cortar una WebView colgada) | `metrolist/music/utils/potoken/PoTokenGenerator.kt:33` |
-| D4 | ~~Typo en nombre de fichero `LibraryScreeen.kt`~~ → corregido en IT-05 | `ui/screens/` |
-| D5 | ~~Tests de plantilla sin valor~~ (borrados en IT-06). La cobertura sigue siendo baja: 20 tests unitarios en `:app` + `:innertube` | `app/src/test`, `app/src/androidTest` |
-| D6 | ~~Corregido en IT-07~~ — `README.md` no mencionaba Deezer, Soulseek, archivos locales ni el onboarding de fuentes | `README.md` |
-| D7 | Código del reproductor web de Spotify desactivado pero presente | `di/SpotifyWebPlayer.kt`, `ui/notification/WebMediaPlayer.kt` |
-| D8 | Release sin minificar (`isMinifyEnabled = false`) → APK grande | `app/build.gradle.kts` |
-| D9 | Dependencias con versiones de 2024 (Compose BOM, Media3 1.3.1, coroutines 1.7.3) | `app/build.gradle.kts` |
-| D10 | Credenciales en `SharedPreferences` sin cifrar. Spotify, Deezer y SpotiFLAC ya están excluidas del backup; **la cookie de YouTube y Soulseek no** (→ IT-16) | `data/api/SpotifySession.kt`, `data/preferences/*` |
+| # | Hallazgo | Dónde | Iteración |
+|---|---|---|---|
+| D1 | `SongPlayer.kt` es un *god object* (~2600 líneas: resolución, crossfade, cachés, puntuación) | `di/SongPlayer.kt` | IT-27 (primer trozo) |
+| D2 | `runBlocking` al generar el PoToken: los tiempos límite no pueden cortar una WebView colgada | `metrolist/music/utils/potoken/PoTokenGenerator.kt:40` | IT-26 |
+| D3 | Typo en el nombre de fichero `LibraryScreeen.kt` | `ui/screens/` | IT-24 |
+| D4 | Tests de plantilla sin valor; `ProviderStreamTest` usa red. Hay 36 `@Test` en total (`:app` 16 unitarios + 1 instrumentado, `:spotify` 19, `:innertube` 0) | `app/src/test`, `app/src/androidTest` | IT-21, IT-25 |
+| D5 | Aviso de actualización y enlace "GitHub" de Ajustes apuntan a `H4zh4n/Spotui` | `SettingsPref.kt:36`, `SettingsScreen.kt:839` | IT-22, IT-23 |
+| D6 | **Credenciales en el backup de Google**: `backup_rules.xml` incluye todas las prefs y `data_extraction_rules.xml` no tiene reglas (Android 12+ copia todo) | `res/xml/`, `data/preferences/*` | IT-29, IT-30 |
+| D7 | Reproductor web de Spotify desactivado pero presente | `di/SpotifyWebPlayer.kt`, `ui/notification/WebMediaPlayer.kt` | S3 |
+| D8 | Release sin minificar (`isMinifyEnabled = false`) → APK de ~100 MB | `app/build.gradle.kts` | S4 |
+| D9 | La release se firma con `app/debug.keystore`, que está **en git** con contraseña `android`. Ventaja: el APK que compiles actualiza encima del de H4zh4n sin desinstalar. Riesgo: cualquiera puede firmar un APK que se instale encima | `app/build.gradle.kts:32-56` | S12 |
 
 Estas deudas alimentan el plan de iteraciones en [`iteraciones/README.md`](iteraciones/README.md).
 
-## 6. Compilar y probar en esta máquina
+## 6. Compilar y probar
 
-El Java por defecto es el 25 y Gradle 8.6 no lo soporta. Usa JDK 17 (o el JBR de Android Studio):
+**Lo hace el usuario en Android Studio** (fase 2). Claude no lanza Gradle sin permiso explícito,
+porque una compilación completa satura el PC.
 
-```bash
-export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ANDROID_HOME=$HOME/Android/Sdk
-./gradlew assembleDebug                       # APK en app/build/outputs/apk/debug/
-./gradlew testDebugUnitTest :spotify:test     # 22 tests unitarios (IT-01 + IT-12)
-```
+- APK: `app/build/outputs/apk/debug/Spotui_v1.5.0.apk` (con sufijo `.debug` en el `applicationId`).
+- Tests: `:app` y `:innertube` → `testDebugUnitTest`; `:spotify` es un módulo JVM → `:spotify:test`.
+- Si alguna vez se compila desde terminal: JDK 17 (`JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64`,
+  `ANDROID_HOME=$HOME/Android/Sdk`) y con límites (`--no-daemon --max-workers=4`, `-Xmx2g`).
