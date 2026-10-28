@@ -73,7 +73,7 @@ Reglas extra de esta fase:
 | [IT-29](IT-29-credenciales-fuera-del-backup.md) | Sacar las credenciales del backup de Google | `spotify_session`, `Deezer` y `SpotiflacSession` excluidos en `backup_rules.xml` y `data_extraction_rules.xml` (cloud + device-transfer) | Código | — | ✅ |
 | [IT-30](IT-30-cookie-youtube-backup.md) | Mover la cookie de YouTube a su propio fichero y excluirlo del backup | Cerrada sin cambios: las funciones de la cookie no se usan, no hay login de YouTube (`YouTube.cookie = null`). Funciones sin uso → S15 | Análisis | IT-29 | 🚫 |
 | [IT-31](IT-31-commits-rmno21.md) | Revisar los 4 commits de RMNO21 contra H4zh4n | 3 aplican limpio; `bfe4bdc` no por `UpdateChecker` (OkHttp en H4zh4n). Bug real: seek en Deezer (`f1631c8`). Qué commits se traen: decisión del usuario | Análisis | — | ✅ |
-| IT-32 | Decidir si se trae Soulseek | Decisión, sin código: solo existe en `Spotui/Spotui` 1.6. Si se trae, se parte en iteraciones antes de empezar | Decisión | IT-31 | ⏳ **siguiente** |
+| [IT-32](IT-32-decidir-soulseek.md) | Decidir si se trae Soulseek | No se trae: P2P (IP visible), cuenta automática, ~30 MB/canción y H4zh4n no tiene el *upgrade*. Queda como S18 | Decisión | IT-31 | 🚫 |
 | [IT-33](IT-33-deezer-seek-canvas.md) | Traer `f1631c8`: salto al final en Deezer + lector de Canvas | Cherry-pick. Arregla el `IllegalArgumentException` al saltar al último trozo en Deezer | Código | IT-31 | ✅ |
 | [IT-34](IT-34-concurrencia-rmno21.md) | Traer `0035218`: concurrencia | Cherry-pick. `SpotifySync` set concurrente, `NewPipeExtractor.init()` sincronizado, cachés de `SpotifyMapper` | Código | IT-31 | ✅ |
 | [IT-35](IT-35-cerrar-conexiones-http.md) | Traer `bfe4bdc` sin `UpdateChecker`: cerrar conexiones HTTP | `DeezerSession`, `LosslessSource`, `SpotiflacGated` hacen `disconnect()` en `finally` | Código | IT-31 | ✅ |
@@ -113,6 +113,7 @@ Se convierten en iteración solo si el usuario lo pide. Los IDs no se renumeran:
 | S15 | `getYoutubeCookie`, `setYoutubeCookie`, `isYoutubeLoggedIn` y `KEY_YT_COOKIE` (`SettingsPref.kt:76-85`) no se usan en ningún sitio: borrarlos (hallazgo de IT-30) | Pendiente |
 | S16 | En `ProviderStreamTest` (2026-10-28) solo YouTube Music resuelve (10/10). Amazon falla al instante con `toString(...) must not be null` (¿bug o contexto falso del test?); Qobuz da timeout; TIDAL, Deezer Mirror, SoundCloud y SpotiFLAC no encuentran ninguna canción; Deezer Direct necesita ARL. Investigar cuáles están caídos de verdad (hallazgo de IT-21) | Pendiente |
 | S17 | `UpdateChecker.fetchLatestRelease` (`UpdateChecker.kt:58-59`) no cierra el `response` de OkHttp cuando no es 2xx: usar `use {}` (hallazgo de IT-31) | Pendiente |
+| S18 | **Soulseek** como respaldo FLAC (descartado en IT-32). Si se retoma: versión reducida (opción B de IT-32): paquete `soulseek/` de `archivo/original-1.6`, desactivado por defecto, credenciales fuera del backup, interruptor en Ajustes, solo caché + bajar la siguiente canción desde `prefetch()`. Tiene sentido sobre todo si S16 confirma que los proveedores lossless están caídos | Pendiente (mejora) |
 
 S3, S4 y S5 siguen vigentes en la base H4zh4n (`SpotifyWebPlayer` sigue ahí y desactivado, y
 `isMinifyEnabled = false`).
