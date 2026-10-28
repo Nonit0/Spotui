@@ -4,7 +4,7 @@
 |---|---|
 | Tipo | Código |
 | Depende de | IT-39 |
-| Estado | ✅ Hecha (2026-10-29) · pendiente de prueba manual |
+| Estado | ✅ Hecha y probada (2026-10-29) |
 
 ## 1. Qué hacer
 En la prueba de la IT-39, `POST api.spotify.com/v1/me/playlists` respondió **429 "API rate limit exceeded"** a los
@@ -42,3 +42,4 @@ para letras (`color-lyrics`) y radio (`inspiredby-mix`):
 | Fecha | Estado | Resultado real | Commit |
 |---|---|---|---|
 | 2026-10-29 | ✅ Hecha | spclient playlist/v2 + rootlist. No compilado aquí (lo hace el usuario en Android Studio) | `e478ef3` |
+| 2026-10-29 | ✅ Probada | El usuario: "ahora las playlist se crean en spotify" | — |
