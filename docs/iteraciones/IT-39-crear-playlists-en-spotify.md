@@ -4,7 +4,7 @@
 |---|---|
 | Tipo | Código |
 | Depende de | — |
-| Estado | ✅ Hecha (2026-10-28) · pendiente de prueba manual |
+| Estado | ⚠️ Hecha y probada (2026-10-29): Spotify la rechaza (429), se crea local |
 
 ## 1. Qué hacer
 Al crear una playlist desde la app, que se cree en la cuenta real de Spotify y no solo como "Local Playlist".
@@ -42,3 +42,4 @@ REST `POST me/playlists`) sigue en el módulo `:spotify`.
 | Fecha | Estado | Resultado real | Commit |
 |---|---|---|---|
 | 2026-10-28 | ✅ Hecha | Spotify primero, local con aviso si falla. No compilado aquí (lo hace el usuario en Android Studio) | `7c7aa42` |
+| 2026-10-29 | ⚠️ Probada | `POST me/playlists` → **429 "API rate limit exceeded"** en los 3 intentos (esperas de 28 s + 1 s + 58 s, ~90 s hasta el aviso). La alternativa local funciona. Seguramente es el motivo por el que H4zh4n lo quitó → IT-40 | — |

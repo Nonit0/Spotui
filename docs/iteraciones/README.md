@@ -80,7 +80,7 @@ Reglas extra de esta fase:
 | [IT-36](IT-36-playlist-canciones-repetidas.md) | La app se cierra al abrir una playlist con canciones repetidas | Clave de fila `id_posición` en `PlaylistScreen` (Spotify permite repetir canciones) | Código | — | ✅ |
 | [IT-37](IT-37-cola-canciones-repetidas.md) | La cola se cierra con canciones repetidas | S19: filas por `id` + nº de aparición; tocar/arrastrar/quitar actúan sobre esa copia (`removeQueueItem(index)`) | Código | IT-36 | ✅ |
 | [IT-38](IT-38-pestanas-navegacion.md) | La barra inferior resalta la pestaña equivocada y Home no vuelve al inicio | `currentTab` se actualiza al pulsar (antes solo en pantallas raíz; `restoreState` devolvía una subpantalla) | Código | — | ✅ |
-| [IT-39](IT-39-crear-playlists-en-spotify.md) | Crear las playlists nuevas en Spotify | Biblioteca y "Saved in" crean en Spotify (`SpotifySync.createPlaylist`); local con aviso si falla | Código | — | ✅ (pendiente de prueba manual) |
+| [IT-39](IT-39-crear-playlists-en-spotify.md) | Crear las playlists nuevas en Spotify | Biblioteca y "Saved in" crean en Spotify (`SpotifySync.createPlaylist`); local con aviso si falla | Código | — | ⚠️ (Spotify da 429 → IT-40) |
 
 #### Correspondencia fase 1 → fase 2
 
