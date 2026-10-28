@@ -33,3 +33,4 @@ Probar Deezer sin ARL (no hay forma).
 | Fecha | Estado | Resultado real | Commit |
 |---|---|---|---|
 | 2026-10-28 | ✅ Hecha | Cherry-pick sin conflictos. No se ha compilado (lo hace el usuario en Android Studio) | `4500f5c` |
+| 2026-10-28 | ✅ | `:spotify` recompilado con IT-33 e IT-34: `:spotify:test` 19/19 en verde (MatchScore 7 · Performance 12), 21 s. Solo el aviso previo de `readBytes()` obsoleto en `SpotifyCanvas.kt:57` (no viene del parche) | — |
