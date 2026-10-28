@@ -77,6 +77,7 @@ Reglas extra de esta fase:
 | [IT-33](IT-33-deezer-seek-canvas.md) | Traer `f1631c8`: salto al final en Deezer + lector de Canvas | Cherry-pick. Arregla el `IllegalArgumentException` al saltar al último trozo en Deezer | Código | IT-31 | ✅ |
 | [IT-34](IT-34-concurrencia-rmno21.md) | Traer `0035218`: concurrencia | Cherry-pick. `SpotifySync` set concurrente, `NewPipeExtractor.init()` sincronizado, cachés de `SpotifyMapper` | Código | IT-31 | ✅ |
 | [IT-35](IT-35-cerrar-conexiones-http.md) | Traer `bfe4bdc` sin `UpdateChecker`: cerrar conexiones HTTP | `DeezerSession`, `LosslessSource`, `SpotiflacGated` hacen `disconnect()` en `finally` | Código | IT-31 | ✅ |
+| [IT-36](IT-36-playlist-canciones-repetidas.md) | La app se cierra al abrir una playlist con canciones repetidas | Clave de fila `id_posición` en `PlaylistScreen` (Spotify permite repetir canciones) | Código | — | ✅ (pendiente de prueba manual) |
 
 #### Correspondencia fase 1 → fase 2
 
@@ -114,6 +115,7 @@ Se convierten en iteración solo si el usuario lo pide. Los IDs no se renumeran:
 | S16 | En `ProviderStreamTest` (2026-10-28) solo YouTube Music resuelve (10/10). Amazon falla al instante con `toString(...) must not be null` (¿bug o contexto falso del test?); Qobuz da timeout; TIDAL, Deezer Mirror, SoundCloud y SpotiFLAC no encuentran ninguna canción; Deezer Direct necesita ARL. Investigar cuáles están caídos de verdad (hallazgo de IT-21) | Pendiente |
 | S17 | `UpdateChecker.fetchLatestRelease` (`UpdateChecker.kt:58-59`) no cierra el `response` de OkHttp cuando no es 2xx: usar `use {}` (hallazgo de IT-31) | Pendiente |
 | S18 | **Soulseek** como respaldo FLAC (descartado en IT-32). Si se retoma: versión reducida (opción B de IT-32): paquete `soulseek/` de `archivo/original-1.6`, desactivado por defecto, credenciales fuera del backup, interruptor en Ajustes, solo caché + bajar la siguiente canción desde `prefetch()`. Tiene sentido sobre todo si S16 confirma que los proveedores lossless están caídos | Pendiente (mejora) |
+| S19 | `QueueScreen.kt:211` usa `key = s.id`: una cola con la misma canción dos veces (p. ej. al reproducir una playlist con repetidas) puede cerrar la app. Cambiar la clave y el arrastre (`draggingId`) (hallazgo de IT-36) | Pendiente — **prioritaria** |
 
 S3, S4 y S5 siguen vigentes en la base H4zh4n (`SpotifyWebPlayer` sigue ahí y desactivado, y
 `isMinifyEnabled = false`).
