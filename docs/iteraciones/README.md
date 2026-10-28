@@ -62,14 +62,14 @@ Reglas extra de esta fase:
 | [IT-18](IT-18-base-h4zh4n-compila.md) | Traer H4zh4n a `base-h4zh4n` y comprobar que compila | — | Verificación | — | ✅ |
 | [IT-19](IT-19-agp-9-4-1.md) | Subir el AGP de 9.2.1 a 9.4.1 | — | Código | IT-18 | ✅ |
 | [IT-20](IT-20-contexto-base-h4zh4n.md) | Actualizar `CONTEXTO.md` a la base H4zh4n | Reescribir el contexto: módulos, fuentes de audio (lista de prioridad), login de YouTube por WebView, `UpdateChecker` único con URL configurable, tests que existen | Docs | IT-18 | ✅ |
-| IT-21 | Pasar los tests unitarios en Android Studio | El usuario los lanza (`:app`, `:spotify`, `:innertube`) y se apunta qué pasa y qué falla. `ProviderStreamTest` usa red: se espera que falle o tarde | Verificación | IT-18 | ⏳ pendiente (la lanza el usuario) |
+| [IT-21](IT-21-tests-unitarios.md) | Pasar los tests unitarios | Lanzados de uno en uno con topes de RAM/CPU: 45/45 en verde (`:innertube` no tiene tests). `ProviderStreamTest` pasa pero solo YouTube resuelve (→ S16) | Verificación | IT-18 | ✅ |
 | [IT-22](IT-22-actualizaciones-a-nonit0.md) | Apuntar las actualizaciones a `Nonit0/Spotui` | `DEFAULT_UPDATE_REPO_URL` (`SettingsPref.kt:36`) → `https://github.com/Nonit0/Spotui`. Sustituye a IT-09/IT-13. Sin avisos hasta la 1ª release del fork | Código | — | ✅ |
 | [IT-23](IT-23-firma-ajustes-nonit0.md) | Firma de Ajustes a `Nonit0` | `SettingsScreen.kt:834-839`: `Maintained with ♥ by Hazhan Salih` → `by Nonit0`, enlace a tu fork. Créditos a H4zh4n van al README (S10) | Código | — | ✅ |
 | [IT-24](IT-24-renombrar-library-screen.md) | Renombrar `LibraryScreeen.kt` → `LibraryScreen.kt` | Igual que IT-05: renombrar el fichero, sin tocar código | Código | — | ✅ |
 | IT-25 | Borrar los tests de plantilla | Igual que IT-06: `ExampleUnitTest.kt` y `ExampleInstrumentedTest.kt` | Código | IT-21 | ⏳ |
 | [IT-26](IT-26-potoken-runblocking.md) | Quitar `runBlocking` de `PoTokenGenerator` | Cerrada sin cambios: en H4zh4n el `runBlocking` ya tiene tiempo límite y corre en un `CompletableFuture`; hacerlo `suspend` obliga a tocar `YTPlayerUtils`. Riesgo de bloqueo de hilos → S13 | Análisis | — | 🚫 |
 | [IT-27](IT-27-extraer-track-matcher.md) | Sacar la comparación de canciones de `SongPlayer` a `TrackMatcher.kt` | Igual que IT-14; movido sin cambios (l.1625-1838 + `featSearchPattern`). `SongPlayer.kt` 2612 → 2397 líneas | Código | — | ✅ |
-| [IT-28](IT-28-tests-track-matcher.md) | Tests unitarios de `TrackMatcher` | 10 tests en `di/TrackMatcherTest.kt` (incluye `explicit`). Escritos sin ejecutar: los lanza el usuario | Código | IT-27 | ✅ (pendiente de ejecutar) |
+| [IT-28](IT-28-tests-track-matcher.md) | Tests unitarios de `TrackMatcher` | 10 tests en `di/TrackMatcherTest.kt` (incluye `explicit`). Ejecutados en IT-21: 10/10 en verde | Código | IT-27 | ✅ |
 | [IT-29](IT-29-credenciales-fuera-del-backup.md) | Sacar las credenciales del backup de Google | `spotify_session`, `Deezer` y `SpotiflacSession` excluidos en `backup_rules.xml` y `data_extraction_rules.xml` (cloud + device-transfer) | Código | — | ✅ |
 | [IT-30](IT-30-cookie-youtube-backup.md) | Mover la cookie de YouTube a su propio fichero y excluirlo del backup | Cerrada sin cambios: las funciones de la cookie no se usan, no hay login de YouTube (`YouTube.cookie = null`). Funciones sin uso → S15 | Análisis | IT-29 | 🚫 |
 | IT-31 | Revisar los 4 commits de RMNO21 contra H4zh4n | Análisis, sin tocar código: ver si `0035218`, `bfe4bdc`, `f1631c8` y `7244e4d` aplican aquí. Cada commit que aplique pasa a ser una iteración propia | Análisis | — | ⏳ **siguiente** (en pausa: el usuario prueba la app) |
@@ -103,11 +103,12 @@ Se convierten en iteración solo si el usuario lo pide. Los IDs no se renumeran:
 | S7 | Caché de 6 h / `force` en `data/update` | Pendiente, ligada a IT-09 |
 | S9 | Aviso de Home apunta a `Spotui/Spotui` | ✅ Resuelta en IT-13 (fase 1); en la fase 2 → IT-22 |
 | S10 | Actualizar `README.md` para tu fork (funciones, enlaces, **créditos a H4zh4n: confirmado por el usuario en IT-23**) | Fase 2, después de IT-20 |
-| S11 | `ProviderStreamTest` usa red: separarlo o marcarlo para que no corra por defecto | Fase 2, según el resultado de IT-21 |
+| S11 | `ProviderStreamTest` usa red: separarlo o marcarlo para que no corra por defecto | Pendiente. IT-21: tarda ~2 min y no tiene asserts (siempre pasa) |
 | S12 | La release se firma con `app/debug.keystore`, que está en git (contraseña `android`): ¿clave propia fuera de git? | Fase 2, hallazgo de IT-20 |
 | S13 | **Posible bloqueo de hilos al generar el PoToken** (hallazgo de IT-26): `PoTokenGenerator.kt:40` usa `runBlocking` dentro de un `CompletableFuture.supplyAsync` (`YTPlayerUtils.kt:126`), que ocupa un hilo del `ForkJoinPool` común hasta 5 s; `potFuture.get`/`sigFuture.get` (`YTPlayerUtils.kt:143,150`) bloquean el hilo de la corrutina; y la cancelación (saltar canción) no llega al futuro. Arreglo: pasar todo a corrutinas (`suspend` + `async` + `withTimeoutOrNull`), 2 ficheros, probar bien la reproducción | Pendiente: a tratar en el futuro (decisión del usuario en IT-26) |
 | S14 | Errata en el marcador `clean` (`TrackMatcher.kt:110`): `пensored` lleva una `п` cirílica, así que nunca casa con "censored" (hallazgo de IT-27) | Pendiente |
 | S15 | `getYoutubeCookie`, `setYoutubeCookie`, `isYoutubeLoggedIn` y `KEY_YT_COOKIE` (`SettingsPref.kt:76-85`) no se usan en ningún sitio: borrarlos (hallazgo de IT-30) | Pendiente |
+| S16 | En `ProviderStreamTest` (2026-10-28) solo YouTube Music resuelve (10/10). Amazon falla al instante con `toString(...) must not be null` (¿bug o contexto falso del test?); Qobuz da timeout; TIDAL, Deezer Mirror, SoundCloud y SpotiFLAC no encuentran ninguna canción; Deezer Direct necesita ARL. Investigar cuáles están caídos de verdad (hallazgo de IT-21) | Pendiente |
 
 S3, S4 y S5 siguen vigentes en la base H4zh4n (`SpotifyWebPlayer` sigue ahí y desactivado, y
 `isMinifyEnabled = false`).

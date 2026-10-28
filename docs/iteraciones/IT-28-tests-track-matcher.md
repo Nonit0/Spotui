@@ -4,7 +4,7 @@
 |---|---|
 | Tipo | Código (solo tests) |
 | Depende de | IT-27 |
-| Estado | ✅ Escrita (2026-10-28) · **pendiente de que el usuario la ejecute** |
+| Estado | ✅ Escrita y ejecutada (2026-10-28, en IT-21): 10/10 en verde |
 
 ## 1. Qué hacer
 Crear `app/src/test/java/com/music/spotui/di/TrackMatcherTest.kt` con casos que fijen el comportamiento **actual**
