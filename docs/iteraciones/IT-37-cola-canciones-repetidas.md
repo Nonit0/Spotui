@@ -4,7 +4,7 @@
 |---|---|
 | Tipo | Código |
 | Depende de | IT-36 |
-| Estado | ✅ Hecha (2026-10-28) · pendiente de prueba manual |
+| Estado | ✅ Hecha y probada (2026-10-28) |
 
 ## 1. Qué hacer
 S19: que `QueueScreen` funcione cuando la cola tiene la misma canción dos veces (p. ej. al reproducir la playlist
@@ -43,3 +43,4 @@ la copia concreta.
 | Fecha | Estado | Resultado real | Commit |
 |---|---|---|---|
 | 2026-10-28 | ✅ Hecha | No compilado aquí (lo hace el usuario en Android Studio) | `4bd7b46` |
+| 2026-10-28 | ✅ Probada | El usuario: "Parece que todo funciona" | — |
