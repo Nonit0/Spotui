@@ -79,7 +79,7 @@ Reglas extra de esta fase:
 | [IT-35](IT-35-cerrar-conexiones-http.md) | Traer `bfe4bdc` sin `UpdateChecker`: cerrar conexiones HTTP | `DeezerSession`, `LosslessSource`, `SpotiflacGated` hacen `disconnect()` en `finally` | Código | IT-31 | ✅ |
 | [IT-36](IT-36-playlist-canciones-repetidas.md) | La app se cierra al abrir una playlist con canciones repetidas | Clave de fila `id_posición` en `PlaylistScreen` (Spotify permite repetir canciones) | Código | — | ✅ |
 | [IT-37](IT-37-cola-canciones-repetidas.md) | La cola se cierra con canciones repetidas | S19: filas por `id` + nº de aparición; tocar/arrastrar/quitar actúan sobre esa copia (`removeQueueItem(index)`) | Código | IT-36 | ✅ |
-| [IT-38](IT-38-pestanas-navegacion.md) | La barra inferior resalta la pestaña equivocada y Home no vuelve al inicio | `currentTab` se actualiza al pulsar (antes solo en pantallas raíz; `restoreState` devolvía una subpantalla) | Código | — | ✅ (pendiente de prueba manual) |
+| [IT-38](IT-38-pestanas-navegacion.md) | La barra inferior resalta la pestaña equivocada y Home no vuelve al inicio | `currentTab` se actualiza al pulsar (antes solo en pantallas raíz; `restoreState` devolvía una subpantalla) | Código | — | ✅ |
 
 #### Correspondencia fase 1 → fase 2
 

@@ -4,7 +4,7 @@
 |---|---|
 | Tipo | Código |
 | Depende de | — |
-| Estado | ✅ Hecha (2026-10-28) · pendiente de prueba manual |
+| Estado | ✅ Hecha y probada (2026-10-28) |
 
 ## 1. Qué hacer
 Arreglar el fallo que describió el usuario:
@@ -47,3 +47,4 @@ lleva a la pantalla Home original. Igual con Search y Library.
 | Fecha | Estado | Resultado real | Commit |
 |---|---|---|---|
 | 2026-10-28 | ✅ Hecha | Una línea + comentario. No compilado aquí (lo hace el usuario en Android Studio) | `f2ef436` |
+| 2026-10-28 | ✅ Probada | El usuario: "Funciona todo" | — |
