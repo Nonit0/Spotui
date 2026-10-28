@@ -4,7 +4,7 @@
 |---|---|
 | Tipo | Código |
 | Depende de | — |
-| Estado | ✅ Hecha (2026-10-28) · pendiente de compilar |
+| Estado | ✅ Hecha (2026-10-28) · probada por el usuario |
 
 ## 1. Qué hacer
 Renombrar `app/src/main/java/com/music/spotui/ui/screens/LibraryScreeen.kt` (sobra una "e") a `LibraryScreen.kt`
@@ -33,3 +33,4 @@ con `git mv`, sin tocar el contenido. Igual que IT-05 en la fase 1.
 | Fecha | Estado | Resultado real | Commit |
 |---|---|---|---|
 | 2026-10-28 | ✅ Hecha | Renombrado al 100 % (0+/0−). Sin referencias al nombre viejo en fuentes. Sin compilar (lo hace el usuario en Android Studio) | `c2acd1c` |
+| 2026-10-28 | ✅ Probada | El usuario compila y prueba la app en el móvil: "ya la he probado, todo funciona bien" | — |

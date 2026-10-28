@@ -4,7 +4,7 @@
 |---|---|
 | Tipo | Código |
 | Depende de | — |
-| Estado | ✅ Hecha (2026-10-28) · pendiente de prueba manual |
+| Estado | ✅ Hecha (2026-10-28) · probada por el usuario |
 
 ## 1. Qué hacer
 Al final de Ajustes (`SettingsScreen.kt:827-841`) no hay un botón "GitHub" (el índice lo describía mal): hay una firma
@@ -34,3 +34,4 @@ Cambiar el nombre a `Nonit0` y el enlace a `https://github.com/Nonit0/Spotui/`.
 | Fecha | Estado | Resultado real | Commit |
 |---|---|---|---|
 | 2026-10-28 | ✅ Hecha | `grep "H4zh4n\|Hazhan"` en `app/src/main` → sin resultados. Diff: 1 fichero, 2+/2−. Sin compilar (lo hace el usuario en Android Studio) | `110cf89` |
+| 2026-10-28 | ✅ Probada | El usuario compila y prueba la app en el móvil: "ya la he probado, todo funciona bien" | — |

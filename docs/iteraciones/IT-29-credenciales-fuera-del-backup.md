@@ -4,7 +4,7 @@
 |---|---|
 | Tipo | Código |
 | Depende de | — |
-| Estado | ✅ Hecha (2026-10-28) · pendiente de compilar y de prueba manual |
+| Estado | ✅ Hecha (2026-10-28) · probada por el usuario |
 
 ## 1. Qué hacer
 `AndroidManifest.xml` tiene `allowBackup="true"` y ninguna regla real: `backup_rules.xml` (Android ≤ 11) y
@@ -50,3 +50,4 @@ En `data_extraction_rules.xml` se excluyen tanto en `cloud-backup` como en `devi
 
 **Efecto:** al restaurar un backup de Google o pasar la app a un móvil nuevo, se recuperan ajustes, me gusta, listas, etc.,
 pero **no** las sesiones de Spotify, Deezer y SpotiFLAC: hay que volver a iniciar sesión.
+| 2026-10-28 | ✅ Probada | El usuario compila y prueba la app en el móvil: "ya la he probado, todo funciona bien" | — |

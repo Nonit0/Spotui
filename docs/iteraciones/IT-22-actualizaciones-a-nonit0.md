@@ -4,7 +4,7 @@
 |---|---|
 | Tipo | Código |
 | Depende de | — |
-| Estado | ✅ Hecha (2026-10-28) · pendiente de prueba manual |
+| Estado | ✅ Hecha (2026-10-28) · probada por el usuario |
 
 ## 1. Qué hacer
 En `app/src/main/java/com/music/spotui/data/preferences/SettingsPref.kt:36`, cambiar
@@ -44,3 +44,4 @@ En `app/src/main/java/com/music/spotui/data/preferences/SettingsPref.kt:36`, cam
 | 2026-10-28 | ✅ Hecha | `grep "H4zh4n"` en `app/src/main` → solo `SettingsScreen.kt:839`. Diff: 1 fichero, 1+/1−. Sin compilar (lo hace el usuario en Android Studio) | `5d843a5` (docs `4e76adc`) |
 
 **Efecto:** hasta que publiques tu primera release en `Nonit0/Spotui`, no sale ningún aviso de actualización (la API devuelve 404). Después avisará de **tus** versiones.
+| 2026-10-28 | ✅ Probada | El usuario compila y prueba la app en el móvil: "ya la he probado, todo funciona bien" | — |

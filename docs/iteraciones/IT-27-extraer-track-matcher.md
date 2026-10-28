@@ -4,7 +4,7 @@
 |---|---|
 | Tipo | Código (refactor, sin cambio de comportamiento) |
 | Depende de | — |
-| Estado | ✅ Hecha (2026-10-28) · pendiente de compilar y de prueba manual |
+| Estado | ✅ Hecha (2026-10-28) · probada por el usuario |
 
 ## 1. Qué hacer
 Lo mismo que IT-14 en la fase 1, sobre la base H4zh4n: **mover sin modificar** el bloque de funciones puras que puntúan
@@ -44,3 +44,4 @@ Cambiar lógica, renombrar, mover más partes de `SongPlayer`, tests (→ IT-28)
 **Visibilidad:** igual que en IT-14, quedan `internal` `CandidateScore`, `featSearchPattern`, `normalizedForMatch`,
 `foldLatinDiacritics`, `bigramSimilarity`, `versionMarkers`, `ytmusicTransferScore` e `isAcceptableMatch` (las 4 primeras
 para que IT-28 pueda probarlas sin tocar `TrackMatcher`); el resto sigue `private`.
+| 2026-10-28 | ✅ Probada | El usuario compila y prueba la app en el móvil: "ya la he probado, todo funciona bien" | — |
