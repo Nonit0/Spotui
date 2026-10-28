@@ -126,8 +126,7 @@ fun QueueContent(
     val playerViewModel: PlayerViewModel = hiltViewModel()
     val context = LocalContext.current
     val queue by playerViewModel.queue
-    val currentId = playerViewModel.currentSongId.value
-    val curIdx = queue.indexOfFirst { it.id == currentId }.coerceAtLeast(0)
+    val curIdx = playerViewModel.currentPositionIn(queue).coerceAtLeast(0)
     val upcoming = if (queue.isNotEmpty()) queue.drop(curIdx + 1) else emptyList()
     val current = queue.getOrNull(curIdx)
     // A queue may hold the same track twice: tell copies apart by their occurrence

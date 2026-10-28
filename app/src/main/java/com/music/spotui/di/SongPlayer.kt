@@ -2025,9 +2025,7 @@ object SongPlayer {
             return
         }
         val curId = state.songId.value
-        val cur = q.indexOfFirst { it.id == curId }
-            .takeIf { it >= 0 }
-            ?: q.indexOfFirst { it.url == state.songUrl.value }.takeIf { it >= 0 }
+        val cur = state.positionIn(q).takeIf { it >= 0 }
             ?: state.songIndex.value.coerceIn(0, q.size - 1)
         android.util.Log.d(TAG, "next: cur=$cur q.size=${q.size} repeat=${state.repeat.value} curId=$curId")
         val nextIdx: Int
@@ -2065,10 +2063,7 @@ object SongPlayer {
             releaseWakeLock("spotui:previous")
             return
         }
-        val curId = state.songId.value
-        val cur = q.indexOfFirst { it.id == curId }
-            .takeIf { it >= 0 }
-            ?: q.indexOfFirst { it.url == state.songUrl.value }.takeIf { it >= 0 }
+        val cur = state.positionIn(q).takeIf { it >= 0 }
             ?: state.songIndex.value.coerceIn(0, q.size - 1)
         android.util.Log.d(TAG, "previous: cur=$cur q.size=${q.size} repeat=${state.repeat.value}")
         val nextIdx: Int
@@ -2222,9 +2217,7 @@ object SongPlayer {
         val state = boundState ?: return
         val q = state.queue.value
         if (q.isEmpty()) return
-        val cur = q.indexOfFirst { it.id == state.songId.value }
-            .takeIf { it >= 0 }
-            ?: q.indexOfFirst { it.url == state.songUrl.value }.takeIf { it >= 0 }
+        val cur = state.positionIn(q).takeIf { it >= 0 }
             ?: state.songIndex.value.coerceIn(0, q.size - 1)
         if (cur < 0 || cur >= q.size - 1) return // last track ends normally
         val nextSong = q[cur + 1]

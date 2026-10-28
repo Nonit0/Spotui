@@ -48,12 +48,15 @@ class PlayerViewModel @Inject constructor(private val currentSongState: CurrentS
 
     /** Insert a track right after the one currently playing ("Play next"). */
     fun playNext(song: SongsModel) {
-        val q = currentSongState.queue.value.toMutableList()
-        q.removeAll { it.id == song.id }
-        val cur = q.indexOfFirst { it.id == currentSongId.value }
-        val insertAt = (if (cur >= 0) cur + 1 else 0).coerceAtMost(q.size)
+        val old = currentSongState.queue.value
+        val oldCur = currentSongState.positionIn(old)
+        // Drop the song's other copies, but never the one that is playing.
+        val q = old.filterIndexed { i, s -> s.id != song.id || i == oldCur }.toMutableList()
+        val cur = if (oldCur >= 0) oldCur - old.take(oldCur).count { it.id == song.id } else -1
+        val insertAt = (cur + 1).coerceAtMost(q.size)
         q.add(insertAt, song)
         currentSongState.updateQueue(q)
+        if (cur >= 0) currentSongState.updateSongIndex(cur)
     }
 
     /** Append a track to the end of the queue ("Add to queue"). */
@@ -76,16 +79,24 @@ class PlayerViewModel @Inject constructor(private val currentSongState: CurrentS
     fun moveQueueItem(from: Int, to: Int) {
         val q = currentSongState.queue.value.toMutableList()
         if (from !in q.indices || to !in q.indices || from == to) return
+        val cur = currentSongState.positionIn(q)
         q.add(to, q.removeAt(from))
         currentSongState.updateQueue(q)
+        when {
+            cur == from -> currentSongState.updateSongIndex(to)
+            cur in (from + 1)..to -> currentSongState.updateSongIndex(cur - 1)
+            cur in to until from -> currentSongState.updateSongIndex(cur + 1)
+        }
     }
 
     /** Remove the track at [index] from the queue (other copies of it stay). */
     fun removeQueueItem(index: Int) {
         val q = currentSongState.queue.value.toMutableList()
         if (index !in q.indices) return
+        val cur = currentSongState.positionIn(q)
         q.removeAt(index)
         currentSongState.updateQueue(q)
+        if (index < cur) currentSongState.updateSongIndex(cur - 1)
     }
 
 
@@ -106,13 +117,11 @@ class PlayerViewModel @Inject constructor(private val currentSongState: CurrentS
 
     //val songsResponse = (songs.value as Response.Success).data
 
-    // Resolve where we currently are in the queue. The stored index can be stale
-    // (e.g. queue swapped out), so match by song id first and fall back to the index.
-    private fun currentPositionIn(queueSongs: List<SongsModel>): Int {
-        val byId = queueSongs.indexOfFirst { it.id == currentSongId.value }
-        if (byId >= 0) return byId
-        val byUrl = queueSongs.indexOfFirst { it.url == currentSongState.songUrl.value }
-        if (byUrl >= 0) return byUrl
+    // Resolve where we currently are in the queue (see CurrentSongState.positionIn);
+    // fall back to the stored index when the track isn't in this list.
+    fun currentPositionIn(queueSongs: List<SongsModel>): Int {
+        val pos = currentSongState.positionIn(queueSongs)
+        if (pos >= 0 || queueSongs.isEmpty()) return pos
         return currentSongIndex.value.coerceIn(0, queueSongs.size - 1)
     }
 

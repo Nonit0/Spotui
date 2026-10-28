@@ -99,10 +99,7 @@ class PlaybackService : MediaLibraryService() {
                         } else {
                             val queue = currentSongState.queue.value
                             if (queue.isNotEmpty()) {
-                                val curId = currentSongState.songId.value
-                                val cur = queue.indexOfFirst { it.id == curId }
-                                    .takeIf { it >= 0 }
-                                    ?: queue.indexOfFirst { it.url == currentSongState.songUrl.value }.takeIf { it >= 0 }
+                                val cur = currentSongState.positionIn(queue).takeIf { it >= 0 }
                                     ?: currentSongState.songIndex.value.coerceIn(0, queue.size - 1)
                                 val song = queue[cur]
                                 SongPlayer.playSong(song.url, applicationContext, "song/${song.id}")
@@ -119,10 +116,7 @@ class PlaybackService : MediaLibraryService() {
                     RepeatMode.OFF -> {
                         val queue = currentSongState.queue.value
                         if (queue.isNotEmpty()) {
-                            val curId = currentSongState.songId.value
-                            val cur = queue.indexOfFirst { it.id == curId }
-                                .takeIf { it >= 0 }
-                                ?: queue.indexOfFirst { it.url == currentSongState.songUrl.value }.takeIf { it >= 0 }
+                            val cur = currentSongState.positionIn(queue).takeIf { it >= 0 }
                                 ?: currentSongState.songIndex.value.coerceIn(0, queue.size - 1)
                             if (cur < queue.size - 1) {
                                 advance(forward = true)
@@ -156,8 +150,7 @@ class PlaybackService : MediaLibraryService() {
             )
             SongPlayer.acquireWakeLock(applicationContext, "spotui:error_advance", 60_000L)
             val queue = currentSongState.queue.value
-            val curId = currentSongState.songId.value
-            val cur = queue.indexOfFirst { it.id == curId }
+            val cur = currentSongState.positionIn(queue)
             if (cur >= 0) {
                 SongPlayer.invalidateResolvedStream(queue[cur].url)
             }

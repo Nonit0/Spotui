@@ -466,7 +466,7 @@ fun PlayerScreen(navController: NavController) {
     // ── Now-playing swipe pager ──
     // Index of the playing track in the queue (fallback to 0 so the pager is valid
     // even before the queue/current id line up).
-    val currentIndex = queueSongs.indexOfFirst { it.id == songId }
+    val currentIndex = playerViewModel.currentPositionIn(queueSongs)
         .let { if (it >= 0) it else 0 }
     val artworkPagerState = rememberPagerState(
         initialPage = currentIndex.coerceIn(0, (queueSongs.size - 1).coerceAtLeast(0)),
@@ -503,7 +503,7 @@ fun PlayerScreen(navController: NavController) {
                 if (wasUserDragged) {
                     wasUserDragged = false
                     val currentQueue = playerViewModel.queue.value
-                    val currentIdx = currentQueue.indexOfFirst { it.id == playerViewModel.currentSongId.value }
+                    val currentIdx = playerViewModel.currentPositionIn(currentQueue)
                         .let { if (it >= 0) it else 0 }
                     if (page != currentIdx && page in currentQueue.indices) {
                         playerViewModel.playSongAt(currentQueue, page, context)
@@ -517,7 +517,7 @@ fun PlayerScreen(navController: NavController) {
 
     // Warm the stream cache for the adjacent tracks so next/previous start instantly.
     LaunchedEffect(songId, queueSongs) {
-        val idx = queueSongs.indexOfFirst { it.id == songId }
+        val idx = playerViewModel.currentPositionIn(queueSongs)
         if (idx >= 0) {
             queueSongs.getOrNull(idx + 1)?.let { SongPlayer.prefetch(it.url, context) }
             queueSongs.getOrNull(idx - 1)?.let { SongPlayer.prefetch(it.url, context) }

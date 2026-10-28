@@ -53,6 +53,20 @@ class CurrentSongState @Inject constructor() {
 
     fun setSongUrl(url: String) { _songUrl.value = url }
 
+    /** Position of the playing track in [q]. A queue may hold the same song twice,
+     *  so the stored index wins while it still points at that song; otherwise its
+     *  first occurrence by id, then by url; -1 when it isn't in [q]. */
+    fun positionIn(q: List<SongsModel>): Int {
+        val idx = _songIndex.value
+        if (idx in q.indices && q[idx].id == _songId.value) return idx
+        val byId = q.indexOfFirst { it.id == _songId.value }
+        if (byId >= 0) return byId
+        return q.indexOfFirst { it.url == _songUrl.value }
+    }
+
+    /** Keeps the playing position in step after a queue edit moved it. */
+    fun updateSongIndex(index: Int) { _songIndex.value = index }
+
     // The actual list the user is playing (album tracks, search results, liked
     // songs…). Next/previous operate on THIS, not on a re-derived global feed.
     private val _queue: MutableState<List<SongsModel>> = mutableStateOf(emptyList())
@@ -109,7 +123,7 @@ class CurrentSongState @Inject constructor() {
         val q = _queue.value
         if (newShuffleState) {
             unshuffledQueue = q
-            val curIdx = q.indexOfFirst { it.id == _songId.value }
+            val curIdx = positionIn(q)
             if (curIdx >= 0) {
                 _queue.value = listOf(q[curIdx]) +
                     q.filterIndexed { i, _ -> i != curIdx }.shuffled()
@@ -251,7 +265,10 @@ class CurrentSongState @Inject constructor() {
         }
         _playGen++
         if (playingState) _lastPlayGen = _playGen
-        val actualIndex = _queue.value.indexOfFirst { it.id == songId }
+        // Trust the caller's index when it points at this song (it tells repeated
+        // copies apart); otherwise fall back to the song's first occurrence.
+        val actualIndex = if (_queue.value.getOrNull(songIndex)?.id == songId) songIndex
+            else _queue.value.indexOfFirst { it.id == songId }
         _songIndex.value = if (actualIndex >= 0) actualIndex else songIndex
         _songId.value = songId
         // Feed the system media notification (MediaSession) with the current track.
