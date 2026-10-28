@@ -96,6 +96,16 @@ Archivos locales, Letras sincronizadas con traducción, Canvas (vídeo en bucle)
 | D7 | Código del reproductor web de Spotify desactivado pero presente | `di/SpotifyWebPlayer.kt`, `ui/notification/WebMediaPlayer.kt` |
 | D8 | Release sin minificar (`isMinifyEnabled = false`) → APK grande | `app/build.gradle.kts` |
 | D9 | Dependencias con versiones de 2024 (Compose BOM, Media3 1.3.1, coroutines 1.7.3) | `app/build.gradle.kts` |
-| D10 | Credenciales (cookie `sp_dc`, ARL de Deezer, Soulseek) en `SharedPreferences` sin cifrar | `data/api/SpotifySession.kt`, `data/preferences/*` |
+| D10 | Credenciales en `SharedPreferences` sin cifrar. Spotify, Deezer y SpotiFLAC ya están excluidas del backup; **la cookie de YouTube y Soulseek no** (→ IT-16) | `data/api/SpotifySession.kt`, `data/preferences/*` |
 
 Estas deudas alimentan el plan de iteraciones en [`iteraciones/README.md`](iteraciones/README.md).
+
+## 6. Compilar y probar en esta máquina
+
+El Java por defecto es el 25 y Gradle 8.6 no lo soporta. Usa JDK 17 (o el JBR de Android Studio):
+
+```bash
+export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ANDROID_HOME=$HOME/Android/Sdk
+./gradlew assembleDebug                       # APK en app/build/outputs/apk/debug/
+./gradlew testDebugUnitTest :spotify:test     # 22 tests unitarios (IT-01 + IT-12)
+```

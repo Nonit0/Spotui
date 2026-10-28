@@ -38,20 +38,23 @@ Contexto de la app: [`../CONTEXTO.md`](../CONTEXTO.md). Plantilla: [`PLANTILLA.m
 | [IT-07](IT-07-actualizar-readme.md) | Actualizar `README.md` con las funciones reales | Docs | — | ✅ |
 | [IT-08](IT-08-analizar-runblocking-potoken.md) | Analizar el `runBlocking` del PoToken (sin cambiar código) | Análisis | — | ✅ |
 | [IT-11](IT-11-potoken-suspend.md) | Quitar `runBlocking` de `PoTokenGenerator` (hacerlo `suspend`) | Código | IT-08 | ✅ (falta prueba manual) |
+| [IT-12](IT-12-tests-modulo-spotify.md) | Ejecutar los tests de `:spotify` | Verificación | IT-01 | ✅ |
+| [IT-13](IT-13-badge-home-a-nonit0.md) | Apuntar el aviso de Home a `Nonit0/Spotui` | Código | — | ⏳ **siguiente** |
+| [IT-14](IT-14-extraer-track-matcher.md) | Sacar la comparación de canciones de `SongPlayer` a `TrackMatcher.kt` | Código | — | ⏳ |
+| [IT-15](IT-15-tests-track-matcher.md) | Tests unitarios de `TrackMatcher` | Código | IT-14 | ⏳ |
+| [IT-16](IT-16-credenciales-fuera-del-backup.md) | Sacar la cookie de YouTube y Soulseek del backup de Google | Código | — | ⏳ |
 
 ## Backlog de sugerencias (aún no son iteraciones)
 
-> Los IDs no se renumeran (para que la traza sea estable): el orden de ejecución lo marca la columna *Depende de*.
+Se convierten en iteración solo si el usuario lo pide. Los IDs no se renumeran: el orden lo marca *Depende de*.
 
-Se convierten en iteración solo si el usuario lo pide, y siempre partidas en pasos atómicos.
-
-- **S1 – Trocear `SongPlayer.kt`** (D2): primer paso posible = mover las funciones puras de
-  *matching* (`normalizedForMatch`, `bigramSimilarity`, `versionMarkers`…) a un fichero propio.
-- **S2 – Tests del matching** de YouTube, una vez extraído (depende de S1).
-- **S3 – Quitar `SpotifyWebPlayer`** (D7): primero preguntar si se piensa recuperar.
-- **S4 – Activar `isMinifyEnabled`** (D8): requiere reglas ProGuard; varias iteraciones.
-- **S5 – Subir dependencias** (D9): una dependencia por iteración.
-- **S9 – Badge de Home apunta al repo original** `Spotui/Spotui` (ver riesgo en IT-09). Si urge antes de la cadena IT-09→IT-04: iteración de 2 constantes en `data/api/UpdateChecker.kt`.
-- **S7 – Caché de 6 h / `force`** en `data/update/UpdateChecker` (lo que se pierde al borrar `data/api`).
-- **S8 – Ejecutar los tests de `:spotify`** (`./gradlew :spotify:test`), que no se ejecutaron en IT-01.
-- **S6 – Cifrar credenciales** (D10) con `EncryptedSharedPreferences` / Keystore, una preferencia por iteración.
+| ID | Sugerencia | Estado |
+|---|---|---|
+| S1 | Trocear `SongPlayer.kt` | Primer trozo → IT-14. Más trozos solo si hace falta |
+| S2 | Tests del matching | → IT-15 |
+| S3 | Quitar `SpotifyWebPlayer` (desactivado) | Pendiente: preguntar si se piensa recuperar |
+| S4 | Activar `isMinifyEnabled` | Pendiente: necesita reglas ProGuard |
+| S5 | Subir dependencias / AGP (quita avisos de D8) | Pendiente: una dependencia por iteración |
+| S6 | Cifrar credenciales | 🚫 Descartada en favor de IT-16 (ver su §5) |
+| S7 | Caché de 6 h / `force` en `data/update` | Pendiente, ligada a IT-09 |
+| S9 | Aviso de Home apunta a `Spotui/Spotui` | → IT-13 |
