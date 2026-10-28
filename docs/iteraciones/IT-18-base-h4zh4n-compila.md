@@ -42,7 +42,7 @@ Código de la app: ninguno.
 - Tests unitarios (`ProviderStreamTest` usa red) → iteración propia.
 - Actualizar `CONTEXTO.md` a la nueva base → iteración propia.
 - Rehacer las iteraciones antiguas → se plantean en el índice como iteraciones nuevas.
-- Subida del AGP 9.2.1 → 9.4.1 que hizo Android Studio → iteración propia.
+- Subida del AGP 9.2.1 → 9.4.1 que hizo Android Studio → IT-19.
 
 ## 6. Sugerencias (nuevas iteraciones candidatas)
 Ver el índice (`README.md`, fase 2).

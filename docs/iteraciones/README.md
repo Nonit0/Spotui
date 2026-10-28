@@ -49,6 +49,7 @@ Contexto de la app: [`../CONTEXTO.md`](../CONTEXTO.md). Plantilla: [`PLANTILLA.m
 | ID | Título | Tipo | Depende de | Estado |
 |---|---|---|---|---|
 | [IT-18](IT-18-base-h4zh4n-compila.md) | Traer H4zh4n a `base-h4zh4n` y comprobar que compila | Verificación | — | ✅ |
+| [IT-19](IT-19-agp-9-4-1.md) | Subir el AGP de 9.2.1 a 9.4.1 | Código | IT-18 | ✅ |
 
 ## Backlog de sugerencias (aún no son iteraciones)
 
