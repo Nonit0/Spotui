@@ -44,4 +44,4 @@ Código de la app: ninguno.
 ## 7. Registro
 | Fecha | Estado | Resultado real | Commit |
 |---|---|---|---|
-| 2026-10-28 | ✅ Hecha | `CONTEXTO.md` reescrito con datos comprobados en el código de `base-h4zh4n`. Hallazgo nuevo: keystore de release en git (→ S12). | ver `git log` |
+| 2026-10-28 | ✅ Hecha | `CONTEXTO.md` reescrito con datos comprobados en el código de `base-h4zh4n`. Hallazgo nuevo: keystore de release en git (→ S12). | `e424135` |
