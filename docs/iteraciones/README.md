@@ -89,6 +89,7 @@ Reglas extra de esta fase:
 | [IT-45](IT-45-cerrar-response-update.md) | Cerrar el `response` de OkHttp en UpdateChecker | S17: `execute().use {}` en `fetchLatestRelease` | Código | IT-31 | ✅ probada |
 | [IT-46](IT-46-provider-test-opt-in.md) | ProviderStreamTest solo bajo demanda | S11: se salta salvo con `-PproviderTests=true` | Test | IT-21 | ✅ probada |
 | [IT-47](IT-47-clave-release-propia.md) | Firmar la release con una clave propia | S12: `keystore.properties` (fuera de git) o, si falta, clave debug compartida | Build | — | ✅ probada |
+| [IT-48](IT-48-readme-fork.md) | README del fork | S10: bilingüe, Ko-fi de H4zh4n fuera, créditos a H4zh4n/Spotui, novedades del fork | Docs | IT-23 | ✅ (pendiente de revisión) |
 
 #### Correspondencia fase 1 → fase 2
 
@@ -117,7 +118,7 @@ Se convierten en iteración solo si el usuario lo pide. Los IDs no se renumeran:
 | S6 | Cifrar credenciales | 🚫 Descartada en favor de IT-16 (ver su §5) |
 | S7 | Caché de 6 h / `force` en `data/update` | Pendiente, ligada a IT-09 |
 | S9 | Aviso de Home apunta a `Spotui/Spotui` | ✅ Resuelta en IT-13 (fase 1); en la fase 2 → IT-22 |
-| S10 | Actualizar `README.md` para tu fork (funciones, enlaces, **créditos a H4zh4n: confirmado por el usuario en IT-23**) | Fase 2, después de IT-20 |
+| S10 | Actualizar `README.md` para tu fork (funciones, enlaces, **créditos a H4zh4n: confirmado por el usuario en IT-23**) | ✅ Resuelta en IT-48 |
 | S11 | `ProviderStreamTest` usa red: separarlo o marcarlo para que no corra por defecto | ✅ Resuelta en IT-46 (flag `-PproviderTests=true`) |
 | S12 | La release se firma con `app/debug.keystore`, que está en git (contraseña `android`): ¿clave propia fuera de git? | ✅ Resuelta en IT-47 |
 | S13 | **Posible bloqueo de hilos al generar el PoToken** (hallazgo de IT-26): `PoTokenGenerator.kt:40` usa `runBlocking` dentro de un `CompletableFuture.supplyAsync` (`YTPlayerUtils.kt:126`), que ocupa un hilo del `ForkJoinPool` común hasta 5 s; `potFuture.get`/`sigFuture.get` (`YTPlayerUtils.kt:143,150`) bloquean el hilo de la corrutina; y la cancelación (saltar canción) no llega al futuro. Arreglo: pasar todo a corrutinas (`suspend` + `async` + `withTimeoutOrNull`), 2 ficheros, probar bien la reproducción | Pendiente: a tratar en el futuro (decisión del usuario en IT-26) |
@@ -130,6 +131,8 @@ Se convierten en iteración solo si el usuario lo pide. Los IDs no se renumeran:
 | S20 | La canción que suena se localiza por id (`currentSongId`): si suena la 2.ª copia de una repetida, la cola se dibuja como si sonara la 1.ª. Llevar la posición en el reproductor (hallazgo de IT-37) | ✅ Resuelta en IT-41 |
 | S21 | Las listas (playlist, álbum, búsqueda…) colorean de verde todas las copias de la canción que suena: comparan por id (hallazgo de IT-41) | ✅ Resuelta en IT-42 |
 | S22 | `app/debug.keystore` sigue en git (lo usan debug y el *fallback* de release): dejar de versionarlo y usar la debug key por defecto de Android (hallazgo de IT-47) | Pendiente |
+| S23 | Añadir el Ko-fi propio del usuario al README cuando exista (hueco comentado; hallazgo de IT-48) | Pendiente |
+| S24 | Cambiar las capturas del README (son de H4zh4n) por unas propias (hallazgo de IT-48) | Pendiente |
 
 S3, S4 y S5 siguen vigentes en la base H4zh4n (`SpotifyWebPlayer` sigue ahí y desactivado, y
 `isMinifyEnabled = false`).
