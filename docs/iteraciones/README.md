@@ -86,6 +86,7 @@ Reglas extra de esta fase:
 | [IT-42](IT-42-resaltar-solo-copia-que-suena.md) | En una playlist solo se resalta la copia que suena | S21: la fila compara id + nº de copia (`playingOccurrence`) | Código | IT-41 | ✅ |
 | [IT-43](IT-43-errata-marcador-clean.md) | Errata en el marcador `clean` de TrackMatcher | S14: `пensored` (п cirílica) → `censored` + 1 test | Código | IT-28 | ✅ (pendiente de ejecutar el test) |
 | [IT-44](IT-44-borrar-cookie-youtube.md) | Borrar las preferencias de la cookie de YouTube sin uso | S15: fuera `KEY_YT_COOKIE` y las 3 funciones de `SettingsPref.kt` | Código | IT-30 | ✅ (pendiente de prueba manual) |
+| [IT-45](IT-45-cerrar-response-update.md) | Cerrar el `response` de OkHttp en UpdateChecker | S17: `execute().use {}` en `fetchLatestRelease` | Código | IT-31 | ✅ (pendiente de prueba manual) |
 
 #### Correspondencia fase 1 → fase 2
 
@@ -121,7 +122,7 @@ Se convierten en iteración solo si el usuario lo pide. Los IDs no se renumeran:
 | S14 | Errata en el marcador `clean` (`TrackMatcher.kt:110`): `пensored` lleva una `п` cirílica, así que nunca casa con "censored" (hallazgo de IT-27) | ✅ Resuelta en IT-43 |
 | S15 | `getYoutubeCookie`, `setYoutubeCookie`, `isYoutubeLoggedIn` y `KEY_YT_COOKIE` (`SettingsPref.kt:76-85`) no se usan en ningún sitio: borrarlos (hallazgo de IT-30) | ✅ Resuelta en IT-44 |
 | S16 | En `ProviderStreamTest` (2026-10-28) solo YouTube Music resuelve (10/10). Amazon falla al instante con `toString(...) must not be null` (¿bug o contexto falso del test?); Qobuz da timeout; TIDAL, Deezer Mirror, SoundCloud y SpotiFLAC no encuentran ninguna canción; Deezer Direct necesita ARL. Investigar cuáles están caídos de verdad (hallazgo de IT-21) | Pendiente |
-| S17 | `UpdateChecker.fetchLatestRelease` (`UpdateChecker.kt:58-59`) no cierra el `response` de OkHttp cuando no es 2xx: usar `use {}` (hallazgo de IT-31) | Pendiente |
+| S17 | `UpdateChecker.fetchLatestRelease` (`UpdateChecker.kt:58-59`) no cierra el `response` de OkHttp cuando no es 2xx: usar `use {}` (hallazgo de IT-31) | ✅ Resuelta en IT-45 |
 | S18 | **Soulseek** como respaldo FLAC (descartado en IT-32). Si se retoma: versión reducida (opción B de IT-32): paquete `soulseek/` de `archivo/original-1.6`, desactivado por defecto, credenciales fuera del backup, interruptor en Ajustes, solo caché + bajar la siguiente canción desde `prefetch()`. Tiene sentido sobre todo si S16 confirma que los proveedores lossless están caídos | Pendiente (mejora) |
 | S19 | `QueueScreen` con la misma canción dos veces se cerraba (hallazgo de IT-36) | ✅ Resuelta en IT-37 |
 | S20 | La canción que suena se localiza por id (`currentSongId`): si suena la 2.ª copia de una repetida, la cola se dibuja como si sonara la 1.ª. Llevar la posición en el reproductor (hallazgo de IT-37) | ✅ Resuelta en IT-41 |
