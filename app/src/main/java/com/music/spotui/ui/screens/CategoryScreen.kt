@@ -51,8 +51,10 @@ import com.music.spotui.ui.viewmodel.CategoryViewModel
 
 @Composable
 fun CategoryScreen(navController: NavController, genre: String, title: String) {
+    // The "Podcasts" tile (genre "Podcast"): episodes can't be played yet (IT-58).
+    val podcasts = genre == "Podcast"
     val viewModel: CategoryViewModel = hiltViewModel()
-    LaunchedEffect(genre) { viewModel.load(genre) }
+    LaunchedEffect(genre) { if (!podcasts) viewModel.load(genre) }
     val playlists by viewModel.playlists.collectAsState()
 
     Column(
@@ -88,9 +90,10 @@ fun CategoryScreen(navController: NavController, genre: String, title: String) {
             )
         }
 
-        when (playlists) {
-            is Response.Loading -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Loader() }
-            is Response.Success -> CategoryGrid((playlists as Response.Success).data, navController)
+        when {
+            podcasts -> PodcastsUnavailableNotice()
+            playlists is Response.Loading -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Loader() }
+            playlists is Response.Success -> CategoryGrid((playlists as Response.Success).data, navController)
             else -> Box(modifier = Modifier.padding(20.dp, 60.dp)) { Snackbar(showMessage = "Couldn't load $title") }
         }
     }

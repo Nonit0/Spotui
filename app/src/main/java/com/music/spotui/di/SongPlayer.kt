@@ -516,6 +516,19 @@ object SongPlayer {
             SpotifyWebPlayer.playEpisode(song.removePrefix("episode:"))
             return
         }
+        // Without the web player an episode has no source: YouTube only finds
+        // unrelated audio. Tell the user instead of playing the wrong thing.
+        if (song.startsWith("episode:")) {
+            playWhenResolved = false
+            boundState?.updateResolveError("Podcasts not available yet")
+            scope.launch(Dispatchers.Main) {
+                android.widget.Toast.makeText(
+                    appContext, "Podcasts are not available yet",
+                    android.widget.Toast.LENGTH_LONG,
+                ).show()
+            }
+            return
+        }
 
         // Downloaded tracks ALWAYS play the local file — even with Spotify web
         // playback on. (Web is now the default and used to run first, so a
@@ -644,6 +657,8 @@ object SongPlayer {
     /** Warm the cache for an upcoming track (e.g. the next/previous queue item). */
     fun prefetch(song: String, context: Context) {
         if (song.isBlank() || streamCache.containsKey(song)) return
+        // Episodes are never resolved through YouTube (see playSong).
+        if (song.startsWith("episode:")) return
         val appContext = context.applicationContext
         // No point resolving streams while Spotify web is the active engine.
         if (webPlaybackActive()) return

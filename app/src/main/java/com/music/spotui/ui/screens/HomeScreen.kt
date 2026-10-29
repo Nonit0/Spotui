@@ -93,7 +93,6 @@ import com.music.spotui.ui.navigation.Routes
 import com.music.spotui.ui.navigation.albumRoute
 import com.music.spotui.ui.navigation.artistRoute
 import com.music.spotui.ui.navigation.playlistRoute
-import com.music.spotui.ui.navigation.showRoute
 import com.music.spotui.ui.theme.AppBackground
 import com.music.spotui.ui.theme.AppPalette
 import com.music.spotui.ui.theme.GridBackground
@@ -111,7 +110,6 @@ fun HomeScreen(navController: NavController){
     val albums by homeViewModel.albums.collectAsState()
     val artists by homeViewModel.artists.collectAsState()
     val songs by homeViewModel.songs.collectAsState()
-    val podcasts by homeViewModel.podcasts.collectAsState()
     val audiobooks by homeViewModel.audiobooks.collectAsState()
     val followedArtists by homeViewModel.followedArtists.collectAsState()
     val selectedFilter by homeViewModel.selectedFilter.collectAsState()
@@ -157,10 +155,8 @@ fun HomeScreen(navController: NavController){
                 HomePodcastsFeedContent(
                     navController = navController,
                     homeViewModel = homeViewModel,
-                    podcastsResult = podcasts,
                     selectedFilter = selectedFilter,
                     isFollowingOnly = isFollowingOnly,
-                    onTrackOptions = { menuSong = it },
                 )
             }
             "Audiobooks" -> {
@@ -1071,23 +1067,14 @@ private fun HomeSongRow(
     }
 }
 
-@OptIn(ExperimentalGlideComposeApi::class)
+// Podcasts can't be played yet (IT-58): the tab shows the notice instead of a list.
 @Composable
 private fun HomePodcastsFeedContent(
     navController: NavController,
     homeViewModel: HomeViewModel,
-    podcastsResult: Response<com.music.spotui.data.entity.SearchResults>,
     selectedFilter: String,
     isFollowingOnly: Boolean,
-    onTrackOptions: (SongsModel) -> Unit = {},
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val playerViewModel: PlayerViewModel = hiltViewModel()
-
-    val searchResults = (podcastsResult as? Response.Success)?.data
-    val shows = searchResults?.shows.orEmpty()
-    val episodes = searchResults?.episodes.orEmpty()
-
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -1104,105 +1091,7 @@ private fun HomePodcastsFeedContent(
             )
         }
 
-        item {
-            Text(
-                text = "Podcasts & Shows",
-                color = Color.White,
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(16.dp, 16.dp, 16.dp, 8.dp)
-            )
-        }
-
-        if (podcastsResult is Response.Loading && shows.isEmpty()) {
-            item {
-                Loader()
-            }
-        }
-
-        if (shows.isNotEmpty()) {
-            item {
-                Text(
-                    text = "Top Shows",
-                    color = Color.White,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(16.dp, 12.dp, 16.dp, 8.dp)
-                )
-                LazyRow(
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(shows.size) { i ->
-                        val show = shows[i]
-                        Column(
-                            modifier = Modifier
-                                .width(140.dp)
-                                .clickable {
-                                    navController.navigate(showRoute(show.id, show.name))
-                                }
-                        ) {
-                            GlideImage(
-                                model = show.coverUri,
-                                contentDescription = show.name,
-                                contentScale = ContentScale.Crop,
-                                loading = placeholder(R.drawable.placeholder),
-                                failure = placeholder(R.drawable.placeholder),
-                                modifier = Modifier
-                                    .size(140.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                text = show.name,
-                                color = Color.White,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1
-                            )
-                            Text(
-                                text = show.publisher,
-                                color = Color(0xFFB3B3B3),
-                                fontSize = 11.sp,
-                                maxLines = 1
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        if (episodes.isNotEmpty()) {
-            item {
-                Text(
-                    text = "Recent Episodes",
-                    color = Color.White,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(16.dp, 16.dp, 16.dp, 8.dp)
-                )
-            }
-
-            items(episodes.size) { i ->
-                val ep = episodes[i]
-                HomeSongRow(
-                    song = ep,
-                    onPlay = {
-                        playerViewModel.updateQueue(episodes)
-                        playerViewModel.playSongAt(episodes, i, context)
-                    },
-                    onLongClick = {
-                        onTrackOptions(ep)
-                    },
-                )
-            }
-        } else if (shows.isEmpty() && podcastsResult is Response.Loading) {
-            item {
-                Loader()
-            }
-        }
-
-        item { Spacer(modifier = Modifier.height(160.dp)) }
+        item { PodcastsUnavailableNotice(Modifier.padding(top = 16.dp)) }
     }
 }
 
