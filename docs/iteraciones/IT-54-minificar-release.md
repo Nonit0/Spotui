@@ -4,7 +4,7 @@
 |---|---|
 | Tipo | Build |
 | Depende de | IT-47 |
-| Estado | ✅ Hecha (2026-10-29) · pendiente de prueba manual |
+| Estado | ✅ Hecha (2026-10-29) · probada por el usuario |
 
 ## 1. Qué hacer
 S4: la release iba sin minificar (`isMinifyEnabled = false`), 90,6 MB. Activar R8 con las reglas necesarias.
@@ -47,3 +47,4 @@ Los puentes `@JavascriptInterface` (cipher, PoToken, EJS, SpotiFLAC) ya los cons
 | Fecha | Estado | Resultado real | Commit |
 |---|---|---|---|
 | 2026-10-29 | ✅ Hecha | 3 compilaciones: 1) R8 falla por clases de JVM de escritorio (Rhino) → `dontwarn`; 2) R8 OK, `produceReleaseComposeMapping` falla en `--offline` (falta `compose-group-mapping:2.4.0`); 3) sin `--offline`: OK. APK **90,6 → 73,3 MB**; `.dex` 63,8 → 9,1 MB; firma `CN=Nonit0`; Rhino, *timeago* y `CipherWebView` presentes en el `.dex` | `e4bbb19` |
+| 2026-10-29 | ✅ Probada | APK minificada instalada encima de la 1.6.0: funciona todo | — |
