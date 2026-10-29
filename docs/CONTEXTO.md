@@ -129,7 +129,7 @@ El repo es configurable en Ajustes; por defecto `https://github.com/Nonit0/Spotu
 | D6 | ✅ Resuelta: credenciales de Spotify, Deezer y SpotiFLAC excluidas del backup (IT-29). No hay cookie de YouTube (IT-30) | `res/xml/` | IT-29, IT-30 |
 | D7 | Reproductor web de Spotify desactivado pero presente | `di/SpotifyWebPlayer.kt`, `ui/notification/WebMediaPlayer.kt` | S3 |
 | D8 | Release sin minificar (`isMinifyEnabled = false`) → APK de ~100 MB | `app/build.gradle.kts` | S4 |
-| D9 | La release se firma con `app/debug.keystore`, que está **en git** con contraseña `android`. Ventaja: el APK que compiles actualiza encima del de H4zh4n sin desinstalar. Riesgo: cualquiera puede firmar un APK que se instale encima | `app/build.gradle.kts:32-56` | S12 |
+| D9 | ✅ Resuelta (IT-47): la release se firma con la clave propia de `keystore.properties` (fuera de git); si falta, con `app/debug.keystore` (en git, contraseña `android`) y Gradle avisa. Debug sigue con `app/debug.keystore` → S22 | `app/build.gradle.kts`, `keystore.properties.example` | S12, IT-47 |
 
 Estas deudas alimentan el plan de iteraciones en [`iteraciones/README.md`](iteraciones/README.md).
 
