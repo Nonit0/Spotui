@@ -4,7 +4,7 @@
 |---|---|
 | Tipo | Build (regresión de IT-54) |
 | Depende de | IT-54 |
-| Estado | ✅ Hecha (2026-10-29) · pendiente de prueba manual |
+| Estado | ✅ Hecha (2026-10-29) · probada por el usuario |
 
 ## 1. Qué hacer
 Con la release minificada (IT-54), traducir letras falla con *"Attempt to read from field
@@ -36,9 +36,10 @@ de origen sale bien sin elegirlo).
 - Podcasts vacíos al pulsar el chip: otra iteración (sospecha: REST de Spotify → 429, como en IT-39).
 
 ## 6. Sugerencias (nuevas iteraciones candidatas)
--
+- S27: la traducción de ML Kit es pobre; valorar otro proveedor (DeepL con clave del usuario, etc.).
 
 ## 7. Registro
 | Fecha | Estado | Resultado real | Commit |
 |---|---|---|---|
 | 2026-10-29 | ✅ Hecha | Compilada en terminal (3 min 57 s). APK 73,3 MB (+80 KB), firma `CN=Nonit0`; `TranslatorImpl$Factory` presente y ya no hay clases ajenas fusionadas en las de ML Kit | `25197de` |
+| 2026-10-29 | ✅ Probada | La traducción vuelve a funcionar (calidad de ML Kit baja → S27) | — |
