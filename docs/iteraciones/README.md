@@ -100,6 +100,7 @@ Reglas extra de esta fase:
 | [IT-56](IT-56-podcasts-desde-searchdesktop.md) | Podcasts desde `searchDesktop` | Chip *Podcasts* vacío: REST `/search` → 429; shows/episodios del GQL, REST solo de respaldo | Código | — | ✅ probada |
 | [IT-57](IT-57-episodios-reproductor-web.md) | Episodios por el reproductor web | S28 (A): episodios al reproductor web si hay Widevine (`canPlay=true` en el móvil), aunque la música siga sin él | Código | IT-56 | ❌ descartada (web no reproduce: falla `apresolve`) |
 | [IT-58](IT-58-podcasts-no-disponibles.md) | Aviso *podcasts no disponibles* | S28 (B): episodio → Toast + error en el reproductor, sin buscar en YouTube; `prefetch` ignora episodios; el chip *Podcasts*, la pantalla de un show y el recuadro *Podcasts* de Search muestran el aviso | Código | IT-57 | ✅ probada |
+| [IT-59](IT-59-cooldown-429-rest.md) | Respetar el `Retry-After` de los 429 del REST | S29: cooldown común (`RateLimitCooldown`); durante el límite no se llama a la red | Código | — | ✅ probada |
 
 #### Correspondencia fase 1 → fase 2
 
@@ -147,11 +148,12 @@ Se convierten en iteración solo si el usuario lo pide. Los IDs no se renumeran:
 | S26 | Release solo con ABIs ARM (`abiFilters` `arm64-v8a`, `armeabi-v7a`): `x86`/`x86_64` son de emulador, ~35 MB sin comprimir, casi todo ML Kit (hallazgo de IT-54) | Pendiente |
 | S27 | Traducción con DeepL: clave del usuario en Ajustes (como Deezer); si se agota el cupo, no hay clave o no hay conexión, usar ML Kit **y avisarlo** en pantalla, igual que se indica la fuente del audio. Mandar la letra entera (no línea a línea) (hallazgo de IT-55; ideas del usuario) | Pendiente (después de podcasts) |
 | S28 | Los episodios de podcast no suenan: con `webPlayerEnabled = false` (`SongPlayer.kt:189`) no van al reproductor web de Spotify (`SongPlayer.kt:510`) y caen en la búsqueda de YouTube, que pone otra cosa (puntuación 0,18–0,26). Opciones: recuperar el reproductor web para episodios (choca con S3) o no buscarlos en YouTube y avisar *no disponible* (hallazgo de IT-56) | ✅ Resuelta en IT-58 (aviso); reproducir de verdad → S31 |
-| S29 | Recordar el `retryAfter` del 429 y no repetir `me/top/tracks` / `me/top/artists` hasta que caduque: ahora se reintenta cada vez que se vuelve a Inicio (hallazgo de IT-56) | Pendiente |
+| S29 | Recordar el `retryAfter` del 429 y no repetir `me/top/tracks` / `me/top/artists` hasta que caduque: ahora se reintenta cada vez que se vuelve a Inicio (hallazgo de IT-56) | ✅ Resuelta en IT-59 |
 | S30 | La app va algo *lageada* en Inicio/Podcasts: medir primero (sin `Skipped frames` en el log; un GC de 20 MB, probablemente portadas) antes de tocar nada; al arrancar se piden dos veces `home`, `me/top/*` y `searchDesktop` (¿Inicio se crea dos veces?) (hallazgos de IT-56 e IT-58) | Pendiente |
 | S31 | Reproducir episodios de verdad sin WebView: muchos no llevan DRM (MP3 en Anchor, Megaphone…) y Spotify da su URL directa (GQL del episodio, `audio`/`externallyHosted`); investigar si se puede pedir sin 429 y pasarla a ExoPlayer; si no hay URL, mantener el aviso de IT-58 (hallazgo de IT-57) | Pendiente (investigar) |
 | S32 | No buscar letras para episodios: `LyricsApi` pide a lrclib el título del episodio y responde 503 (hallazgo de IT-57) | Pendiente |
 | S33 | `HomeViewModel.fetchPodcasts()` sigue buscando podcasts al arrancar aunque el chip ya no los muestre (IT-58): quitarlo mientras no haya reproducción (hallazgo de IT-58) | Pendiente |
 | S34 | Al escribir en *Search*, cada búsqueda cancelada se registra como `searchEverything failed: JobCancellationException` (el `runCatching` atrapa la cancelación): no tratarla como error (hallazgo de IT-58) | Pendiente |
+| S35 | El cooldown de IT-59 no frena las peticiones REST que salen a la vez antes de recibir el primer 429 (al arrancar, 4 × `me/top/*` en 140 ms). Mejor atacarlo con S30 (Inicio carga dos veces) o pidiendo `me/top/*` una sola vez (hallazgo de IT-59) | Pendiente |
 
 S3 y S5 siguen vigentes en la base H4zh4n (`SpotifyWebPlayer` sigue ahí y desactivado); S4 se resolvió en IT-54.
