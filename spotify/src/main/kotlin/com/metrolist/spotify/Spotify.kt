@@ -300,6 +300,10 @@ object Spotify {
 
     // ── REST core (fallback for endpoints without GQL equivalent) ────────
 
+    // Set by a REST 429; while it runs, REST calls fail locally instead of
+    // re-hitting the API (which only prolongs the limit).
+    private val restCooldown = RateLimitCooldown()
+
     private suspend inline fun <reified T> authenticatedGet(
         endpoint: String,
         failFastOn429: Boolean = false,
@@ -313,6 +317,14 @@ object Spotify {
         val maxRetries = if (failFastOn429) 1 else 3
         val maxRetryDelaySec = 3L
         for (attempt in 0 until maxRetries) {
+            restCooldown.remainingSec().takeIf { it > 0 }?.let { left ->
+                // Same rule as a fresh 429: short waits are sat out, long ones fail.
+                if (failFastOn429 || left > maxRetryDelaySec) {
+                    log("W", "REST $endpoint skipped: rate-limit cooldown, ${left}s left")
+                    throw SpotifyException(429, "Rate limited", retryAfterSec = left)
+                }
+                delay(left * 1000)
+            }
             log(
                 "D",
                 "REST GET $endpoint (token: ${token.take(8)}...)" +
@@ -330,6 +342,7 @@ object Spotify {
             }
             if (response.status == HttpStatusCode.TooManyRequests) {
                 val retryAfter = response.headers["Retry-After"]?.toLongOrNull() ?: (2L * (attempt + 1))
+                restCooldown.start(retryAfter)
                 if (failFastOn429 || retryAfter > maxRetryDelaySec) {
                     log("W", "REST $endpoint -> 429, failing fast (retryAfter=${retryAfter}s)")
                     throw SpotifyException(429, "Rate limited", retryAfterSec = retryAfter)
