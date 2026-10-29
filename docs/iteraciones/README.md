@@ -91,6 +91,7 @@ Reglas extra de esta fase:
 | [IT-47](IT-47-clave-release-propia.md) | Firmar la release con una clave propia | S12: `keystore.properties` (fuera de git) o, si falta, clave debug compartida | Build | — | ✅ probada |
 | [IT-48](IT-48-readme-fork.md) | README del fork | S10: bilingüe, Ko-fi de H4zh4n fuera, créditos a H4zh4n/Spotui, novedades del fork | Docs | IT-23 | ✅ revisada |
 | [IT-49](IT-49-version-1-6-0.md) | Versión 1.6.0 para la primera release | `versionName` 1.6.0, `versionCode` 202610290 | Build | IT-48 | ✅ (pendiente de prueba manual) |
+| [IT-50](IT-50-main-en-github.md) | `update-h4zh4n` como nuevo `main` en GitHub | Rama renombrada, `origin` por SSH, `main` sustituido (copia en `archivo/original-1.6`) | Git | IT-49 | ✅ |
 
 #### Correspondencia fase 1 → fase 2
 

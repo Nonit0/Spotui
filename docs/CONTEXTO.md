@@ -3,7 +3,8 @@
 > Documento de referencia para cualquier persona o agente que vaya a trabajar en el repo.
 > Repo de trabajo: **`Nonit0/Spotui`**, todavía sin releases propias.
 > Base de código: **`H4zh4n/Spotui`** 1.5.0 (commit `9180164`, `versionCode 202608150`), rama
-> `base-h4zh4n` (ver IT-18). La base anterior (`Spotui/Spotui` 1.6) está archivada en la rama
+> `update-h4zh4n` (antes `base-h4zh4n`, ver IT-18), que desde IT-50 es también `main` en GitHub. Versión propia:
+> 1.6.0 (IT-49). La base anterior (`Spotui/Spotui` 1.6) está archivada en la rama
 > `archivo/original-1.6`. Estado descrito: 28-10-2026.
 
 ## 1. Qué es
