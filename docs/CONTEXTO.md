@@ -143,3 +143,5 @@ porque una compilación completa satura el PC.
 - Tests: `:app` y `:innertube` → `testDebugUnitTest`; `:spotify` es un módulo JVM → `:spotify:test`.
 - Si alguna vez se compila desde terminal: JDK 17 (`JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64`,
   `ANDROID_HOME=$HOME/Android/Sdk`) y con límites (`--no-daemon --max-workers=4`, `-Xmx2g`).
+- Releases: las compila y firma GitHub Actions al subir un tag `v*` (borrador con la APK). Pasos y secrets en
+  [`RELEASE.md`](RELEASE.md) (IT-53).
