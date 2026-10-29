@@ -87,6 +87,7 @@ Reglas extra de esta fase:
 | [IT-43](IT-43-errata-marcador-clean.md) | Errata en el marcador `clean` de TrackMatcher | S14: `пensored` (п cirílica) → `censored` + 1 test | Código | IT-28 | ✅ (pendiente de ejecutar el test) |
 | [IT-44](IT-44-borrar-cookie-youtube.md) | Borrar las preferencias de la cookie de YouTube sin uso | S15: fuera `KEY_YT_COOKIE` y las 3 funciones de `SettingsPref.kt` | Código | IT-30 | ✅ probada |
 | [IT-45](IT-45-cerrar-response-update.md) | Cerrar el `response` de OkHttp en UpdateChecker | S17: `execute().use {}` en `fetchLatestRelease` | Código | IT-31 | ✅ probada |
+| [IT-46](IT-46-provider-test-opt-in.md) | ProviderStreamTest solo bajo demanda | S11: se salta salvo con `-PproviderTests=true` | Test | IT-21 | ✅ (pendiente de prueba manual) |
 
 #### Correspondencia fase 1 → fase 2
 
@@ -116,7 +117,7 @@ Se convierten en iteración solo si el usuario lo pide. Los IDs no se renumeran:
 | S7 | Caché de 6 h / `force` en `data/update` | Pendiente, ligada a IT-09 |
 | S9 | Aviso de Home apunta a `Spotui/Spotui` | ✅ Resuelta en IT-13 (fase 1); en la fase 2 → IT-22 |
 | S10 | Actualizar `README.md` para tu fork (funciones, enlaces, **créditos a H4zh4n: confirmado por el usuario en IT-23**) | Fase 2, después de IT-20 |
-| S11 | `ProviderStreamTest` usa red: separarlo o marcarlo para que no corra por defecto | Pendiente. IT-21: tarda ~2 min y no tiene asserts (siempre pasa) |
+| S11 | `ProviderStreamTest` usa red: separarlo o marcarlo para que no corra por defecto | ✅ Resuelta en IT-46 (flag `-PproviderTests=true`) |
 | S12 | La release se firma con `app/debug.keystore`, que está en git (contraseña `android`): ¿clave propia fuera de git? | Fase 2, hallazgo de IT-20 |
 | S13 | **Posible bloqueo de hilos al generar el PoToken** (hallazgo de IT-26): `PoTokenGenerator.kt:40` usa `runBlocking` dentro de un `CompletableFuture.supplyAsync` (`YTPlayerUtils.kt:126`), que ocupa un hilo del `ForkJoinPool` común hasta 5 s; `potFuture.get`/`sigFuture.get` (`YTPlayerUtils.kt:143,150`) bloquean el hilo de la corrutina; y la cancelación (saltar canción) no llega al futuro. Arreglo: pasar todo a corrutinas (`suspend` + `async` + `withTimeoutOrNull`), 2 ficheros, probar bien la reproducción | Pendiente: a tratar en el futuro (decisión del usuario en IT-26) |
 | S14 | Errata en el marcador `clean` (`TrackMatcher.kt:110`): `пensored` lleva una `п` cirílica, así que nunca casa con "censored" (hallazgo de IT-27) | ✅ Resuelta en IT-43 |
