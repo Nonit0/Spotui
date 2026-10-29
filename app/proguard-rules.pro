@@ -13,3 +13,8 @@
 -dontwarn java.beans.**
 -dontwarn javax.script.**
 -dontwarn jdk.dynalink.**
+
+# ML Kit (translate + language id) builds its components by reflection through MlKitContext;
+# R8 stripped/merged them and Translation.getClient() got a null factory (IT-55).
+-keep class com.google.mlkit.** { *; }
+-keep class com.google.android.gms.internal.mlkit_** { *; }
