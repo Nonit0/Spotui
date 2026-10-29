@@ -34,12 +34,6 @@ android {
     }
 
     signingConfigs {
-        create("sharedDebug") {
-            storeFile = file("debug.keystore")
-            storePassword = "android"
-            keyAlias = "hazhan"
-            keyPassword = "android"
-        }
         // Own release key, kept out of git: see keystore.properties.example
         val releaseProps = rootProject.file("keystore.properties")
         if (releaseProps.exists()) {
@@ -60,17 +54,16 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // Own key when keystore.properties exists; otherwise the shared debug key so a
-            // fresh clone can still build an installable release.
+            // Own key when keystore.properties exists; otherwise this machine's Android debug
+            // key so a fresh clone can still build an installable release.
             signingConfig = signingConfigs.findByName("release")
-                ?: signingConfigs.getByName("sharedDebug").also {
-                    logger.warn("keystore.properties not found: release is signed with the shared debug key")
+                ?: signingConfigs.getByName("debug").also {
+                    logger.warn("keystore.properties not found: release is signed with the local debug key")
                 }
         }
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
-            signingConfig = signingConfigs.getByName("sharedDebug")
         }
     }
 
