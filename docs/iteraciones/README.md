@@ -93,7 +93,7 @@ Reglas extra de esta fase:
 | [IT-49](IT-49-version-1-6-0.md) | Versión 1.6.0 para la primera release | `versionName` 1.6.0, `versionCode` 202610290 | Build | IT-48 | ✅ (pendiente de prueba manual) |
 | [IT-50](IT-50-main-en-github.md) | `update-h4zh4n` como nuevo `main` en GitHub | Rama renombrada, `origin` por SSH, `main` sustituido (copia en `archivo/original-1.6`) | Git | IT-49 | ✅ |
 | [IT-51](IT-51-release-v1-6-0.md) | Primera release en GitHub: `v1.6.0` | Tag `v1.6.0` (`42be4a4`), release *Latest* con `Spotui_v1.6.0.apk` firmada con la clave propia | Git | IT-50 | ✅ |
-| [IT-52](IT-52-quitar-debug-keystore.md) | Dejar de versionar `app/debug.keystore` | S22: fuera `sharedDebug` y el `.jks` de H4zh4n; debug y el *fallback* de release usan la clave debug local | Build | IT-47 | ✅ (pendiente de prueba manual) |
+| [IT-52](IT-52-quitar-debug-keystore.md) | Dejar de versionar `app/debug.keystore` | S22: fuera `sharedDebug` y el `.jks` de H4zh4n; debug y el *fallback* de release usan la clave debug local | Build | IT-47 | ✅ probada |
 
 #### Correspondencia fase 1 → fase 2
 

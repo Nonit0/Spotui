@@ -4,7 +4,7 @@
 |---|---|
 | Tipo | Build |
 | Depende de | IT-47 |
-| Estado | ✅ Hecha (2026-10-29) · pendiente de prueba manual |
+| Estado | ✅ Hecha (2026-10-29) · probada por el usuario |
 
 ## 1. Qué hacer
 S22: `app/debug.keystore` (clave de H4zh4n, alias `hazhan`, contraseña `android`) seguía en git y firmaba
@@ -45,3 +45,4 @@ equipo (`~/.android/debug.keystore`).
 | Fecha | Estado | Resultado real | Commit |
 |---|---|---|---|
 | 2026-10-29 | ✅ Hecha | No compilado aquí; `~/.android/debug.keystore` existe en el equipo del usuario | `04846bd` |
+| 2026-10-29 | ✅ Probada | El usuario compila e instala en AS: funciona | — |
