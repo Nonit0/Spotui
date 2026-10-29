@@ -4,7 +4,7 @@
 |---|---|
 | Tipo | Test + build |
 | Depende de | IT-21 |
-| Estado | ✅ Hecha (2026-10-29) · pendiente de prueba manual |
+| Estado | ✅ Hecha (2026-10-29) · probada por el usuario |
 
 ## 1. Qué hacer
 S11 (hallazgo de IT-21): `ProviderStreamTest` llama a la red, tarda ~2 min y corría con cada
@@ -37,3 +37,4 @@ S11 (hallazgo de IT-21): `ProviderStreamTest` llama a la red, tarda ~2 min y cor
 | Fecha | Estado | Resultado real | Commit |
 |---|---|---|---|
 | 2026-10-29 | ✅ Hecha | No ejecutado aquí (lo ejecuta el usuario) | `804d93a` |
+| 2026-10-29 | ✅ Probada | Sin flag, `ProviderStreamTest` se salta y el build pasa (usuario) | — |

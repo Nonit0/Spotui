@@ -87,7 +87,7 @@ Reglas extra de esta fase:
 | [IT-43](IT-43-errata-marcador-clean.md) | Errata en el marcador `clean` de TrackMatcher | S14: `пensored` (п cirílica) → `censored` + 1 test | Código | IT-28 | ✅ (pendiente de ejecutar el test) |
 | [IT-44](IT-44-borrar-cookie-youtube.md) | Borrar las preferencias de la cookie de YouTube sin uso | S15: fuera `KEY_YT_COOKIE` y las 3 funciones de `SettingsPref.kt` | Código | IT-30 | ✅ probada |
 | [IT-45](IT-45-cerrar-response-update.md) | Cerrar el `response` de OkHttp en UpdateChecker | S17: `execute().use {}` en `fetchLatestRelease` | Código | IT-31 | ✅ probada |
-| [IT-46](IT-46-provider-test-opt-in.md) | ProviderStreamTest solo bajo demanda | S11: se salta salvo con `-PproviderTests=true` | Test | IT-21 | ✅ (pendiente de prueba manual) |
+| [IT-46](IT-46-provider-test-opt-in.md) | ProviderStreamTest solo bajo demanda | S11: se salta salvo con `-PproviderTests=true` | Test | IT-21 | ✅ probada |
 
 #### Correspondencia fase 1 → fase 2
 
