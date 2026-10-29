@@ -90,8 +90,8 @@ ExoPlayer, crossfade (`audio/`), badge de fuente y calidad, calidad distinta por
 | SpotiFLAC | `SpotiflacSession.xml` |
 
 Sin cifrar. Desde IT-29 **no entran en el backup de Google** (ver D6). YouTube se usa siempre de forma anónima
-(`MyApplication.kt:52`, `YouTube.cookie = null`): no hay login de YouTube. Las funciones `*YoutubeCookie` de
-`SettingsPref.kt:82-85` existen pero no se usan (S15; IT-20 lo había descrito mal).
+(`MyApplication.kt:52`, `YouTube.cookie = null`): no hay login de YouTube. Las funciones `*YoutubeCookie` que
+había en `SettingsPref.kt` no se usaban y se borraron en IT-44 (S15).
 
 ### 4.5 Servicio y sistema
 `PlaybackService` (`MediaLibraryService` de Media3) da notificación, pantalla de bloqueo y
