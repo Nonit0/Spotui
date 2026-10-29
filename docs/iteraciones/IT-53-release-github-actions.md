@@ -4,7 +4,7 @@
 |---|---|
 | Tipo | Build / CI |
 | Depende de | IT-47, IT-51, IT-52 |
-| Estado | ✅ Hecha (2026-10-29) · pendiente de prueba manual |
+| Estado | ✅ Hecha (2026-10-29) · probada por el usuario |
 
 ## 1. Qué hacer
 S25: la release `v1.6.0` (IT-51) salió primero sin APK. Que al subir un tag `v*` GitHub compile, firme y cree
@@ -44,3 +44,4 @@ la release con la APK adjunta, y documentar los pasos.
 |---|---|---|---|
 | 2026-10-29 | ✅ Hecha | YAML validado en local; no ejecutado (necesita los secrets y el push) | `98ea81b` |
 | 2026-10-29 | ✅ Run manual OK | Ejecución `40911909641` en verde, *artifact* `Spotui_v1.6.0` (zip). Avisos Node 20 → `checkout@v7`, `setup-java@v6`, `upload-artifact@v7` con `archive: false` (APK sin zip) | `bf82bdc` |
+| 2026-10-29 | ✅ Probada | APK del *artifact* instalada encima de la 1.6.0: actualiza sin perder datos | — |

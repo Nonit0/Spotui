@@ -94,7 +94,7 @@ Reglas extra de esta fase:
 | [IT-50](IT-50-main-en-github.md) | `update-h4zh4n` como nuevo `main` en GitHub | Rama renombrada, `origin` por SSH, `main` sustituido (copia en `archivo/original-1.6`) | Git | IT-49 | ✅ |
 | [IT-51](IT-51-release-v1-6-0.md) | Primera release en GitHub: `v1.6.0` | Tag `v1.6.0` (`42be4a4`), release *Latest* con `Spotui_v1.6.0.apk` firmada con la clave propia | Git | IT-50 | ✅ |
 | [IT-52](IT-52-quitar-debug-keystore.md) | Dejar de versionar `app/debug.keystore` | S22: fuera `sharedDebug` y el `.jks` de H4zh4n; debug y el *fallback* de release usan la clave debug local | Build | IT-47 | ✅ probada |
-| [IT-53](IT-53-release-github-actions.md) | Release automática con GitHub Actions | S25: tag `v*` → compila, firma, verifica y crea borrador con la APK; pasos en `docs/RELEASE.md` | CI | IT-52 | ✅ (pendiente de prueba manual) |
+| [IT-53](IT-53-release-github-actions.md) | Release automática con GitHub Actions | S25: tag `v*` → compila, firma, verifica y crea borrador con la APK; pasos en `docs/RELEASE.md` | CI | IT-52 | ✅ probada |
 
 #### Correspondencia fase 1 → fase 2
 
