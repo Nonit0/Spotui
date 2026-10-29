@@ -278,18 +278,24 @@ class Api @Inject constructor(
         }
         Spotify.search(query, types = listOf("track", "album", "artist"), limit = 20).fold(
             onSuccess = { res ->
-                // Podcasts come from the REST catalog search (best-effort — a failure
-                // there must not blank out the music results).
-                val podcasts = Spotify.searchPodcasts(query, limit = 12)
-                    .onFailure { Log.e("Api", "searchPodcasts FAILED: ${it.message}", it) }
-                    .getOrNull()
-                Log.d("Api", "podcasts: shows=${podcasts?.shows?.items?.size ?: -1} episodes=${podcasts?.episodes?.items?.size ?: -1}")
+                // Podcasts come in the same searchDesktop response. The REST catalog
+                // search is only a fallback (it is rate-limited, 429) and best-effort —
+                // a failure there must not blank out the music results.
+                var shows = res.shows?.items.orEmpty()
+                var episodes = res.episodes?.items.orEmpty()
+                if (shows.isEmpty() && episodes.isEmpty()) {
+                    Spotify.searchPodcasts(query, limit = 12)
+                        .onFailure { Log.e("Api", "searchPodcasts FAILED: ${it.message}", it) }
+                        .getOrNull()
+                        ?.let { shows = it.shows?.items.orEmpty(); episodes = it.episodes?.items.orEmpty() }
+                }
+                Log.d("Api", "podcasts: shows=${shows.size} episodes=${episodes.size}")
                 emit(Response.Success(SearchResults(
                     songs = res.tracks?.items.orEmpty().map { it.toSongModel() },
                     albums = res.albums?.items.orEmpty().map { it.toAlbumModel() },
                     artists = res.artists?.items.orEmpty().map { it.toArtistModel() },
-                    shows = podcasts?.shows?.items.orEmpty().map { it.toPodcastModel() },
-                    episodes = podcasts?.episodes?.items.orEmpty().map { it.toEpisodeSongModel(null) },
+                    shows = shows.map { it.toPodcastModel() },
+                    episodes = episodes.map { it.toEpisodeSongModel(null) },
                 )))
             },
             onFailure = { Log.e("Api", "searchEverything failed", it); emit(Response.Error(it.message ?: "error")) },
