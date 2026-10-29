@@ -11,6 +11,8 @@ import com.metrolist.spotify.SpotiFlac
 import com.music.spotui.deezer.DeezerSource
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.junit.Assume
+import org.junit.Before
 import org.junit.Test
 import java.util.concurrent.Callable
 import java.util.concurrent.Executors
@@ -31,10 +33,18 @@ import kotlinx.coroutines.runBlocking
  * 7. SoundCloud (SoundCloudAudioProvider)
  * 8. YouTube Music (YouTube Innertube + YTPlayerUtils)
  *
- * Command to run this test suite on demand:
- * .\gradlew.bat testDebugUnitTest --tests "com.music.spotui.providers.ProviderStreamTest"
+ * Skipped by default because it hits the network. Command to run this test suite on demand:
+ * .\gradlew.bat testDebugUnitTest --tests "com.music.spotui.providers.ProviderStreamTest" -PproviderTests=true
  */
 class ProviderStreamTest {
+
+    @Before
+    fun requireOptIn() {
+        Assume.assumeTrue(
+            "Network test: run with -PproviderTests=true",
+            System.getProperty("providerTests") == "true"
+        )
+    }
 
     data class TestSong(
         val title: String,

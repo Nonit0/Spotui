@@ -26,6 +26,8 @@ android {
     testOptions {
         unitTests {
             isReturnDefaultValues = true
+            // ProviderStreamTest hits the network (~2 min): opt in with -PproviderTests=true
+            all { it.systemProperty("providerTests", project.findProperty("providerTests") ?: "false") }
         }
     }
 
