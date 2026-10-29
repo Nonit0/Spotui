@@ -4,7 +4,7 @@
 |---|---|
 | Tipo | Código (borrado) |
 | Depende de | IT-30 |
-| Estado | ✅ Hecha (2026-10-29) · pendiente de prueba manual |
+| Estado | ✅ Hecha (2026-10-29) · probada por el usuario |
 
 ## 1. Qué hacer
 S15 (hallazgo de IT-30): `KEY_YT_COOKIE`, `getYoutubeCookie`, `setYoutubeCookie` e `isYoutubeLoggedIn`
@@ -33,3 +33,4 @@ ninguna referencia fuera de `SettingsPref.kt` (ni en Kotlin, ni en XML, ni en la
 | Fecha | Estado | Resultado real | Commit |
 |---|---|---|---|
 | 2026-10-29 | ✅ Hecha | No compilado aquí (lo compila el usuario en Android Studio) | `0234aa2` |
+| 2026-10-29 | ✅ Probada | Compila y la app funciona (usuario) | — |

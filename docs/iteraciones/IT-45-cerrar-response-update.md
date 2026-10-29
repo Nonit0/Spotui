@@ -4,7 +4,7 @@
 |---|---|
 | Tipo | Código |
 | Depende de | IT-31 |
-| Estado | ✅ Hecha (2026-10-29) · pendiente de prueba manual |
+| Estado | ✅ Hecha (2026-10-29) · probada por el usuario |
 
 ## 1. Qué hacer
 S17 (hallazgo de IT-31): en `UpdateChecker.fetchLatestRelease` el `return null` cuando la respuesta no es 2xx
@@ -32,3 +32,4 @@ casos (2xx, no 2xx, cuerpo nulo o excepción), y `string()` sigue leyéndose den
 | Fecha | Estado | Resultado real | Commit |
 |---|---|---|---|
 | 2026-10-29 | ✅ Hecha | No compilado aquí (lo compila el usuario en Android Studio) | `22193ed` |
+| 2026-10-29 | ✅ Probada | Compila y la app funciona (usuario) | — |
