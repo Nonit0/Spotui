@@ -4,7 +4,7 @@
 |---|---|
 | Tipo | Build |
 | Depende de | — |
-| Estado | ✅ Hecha (2026-10-29) · pendiente de que el usuario cree la clave y pruebe |
+| Estado | ✅ Hecha (2026-10-29) · probada por el usuario |
 
 ## 1. Qué hacer
 S12: la release se firmaba con `app/debug.keystore` (clave de H4zh4n, alias `hazhan`, contraseña `android`),
@@ -47,3 +47,4 @@ con una clave propia que no esté en git.
 | Fecha | Estado | Resultado real | Commit |
 |---|---|---|---|
 | 2026-10-29 | ✅ Hecha | No compilado aquí; el usuario crea la clave y genera la release | `4dcff1b` |
+| 2026-10-29 | ✅ Probada | Clave creada (PKCS12, alias `spotui`); APK release firmada con el asistente de AS, instalada tras desinstalar y funciona. Arreglo de sync: `import java.util.Properties` (`5db87ef`); plantilla con valores guía (`7465ed9`) | — |

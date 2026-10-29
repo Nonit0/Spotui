@@ -88,7 +88,7 @@ Reglas extra de esta fase:
 | [IT-44](IT-44-borrar-cookie-youtube.md) | Borrar las preferencias de la cookie de YouTube sin uso | S15: fuera `KEY_YT_COOKIE` y las 3 funciones de `SettingsPref.kt` | Código | IT-30 | ✅ probada |
 | [IT-45](IT-45-cerrar-response-update.md) | Cerrar el `response` de OkHttp en UpdateChecker | S17: `execute().use {}` en `fetchLatestRelease` | Código | IT-31 | ✅ probada |
 | [IT-46](IT-46-provider-test-opt-in.md) | ProviderStreamTest solo bajo demanda | S11: se salta salvo con `-PproviderTests=true` | Test | IT-21 | ✅ probada |
-| [IT-47](IT-47-clave-release-propia.md) | Firmar la release con una clave propia | S12: `keystore.properties` (fuera de git) o, si falta, clave debug compartida | Build | — | ✅ (pendiente de crear la clave) |
+| [IT-47](IT-47-clave-release-propia.md) | Firmar la release con una clave propia | S12: `keystore.properties` (fuera de git) o, si falta, clave debug compartida | Build | — | ✅ probada |
 
 #### Correspondencia fase 1 → fase 2
 
