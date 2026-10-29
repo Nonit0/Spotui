@@ -142,6 +142,6 @@ Se convierten en iteración solo si el usuario lo pide. Los IDs no se renumeran:
 | S24 | Cambiar las capturas del README (son de H4zh4n) por unas propias (hallazgo de IT-48) | Pendiente |
 | S25 | Checklist de release (compilar, comprobar firma/versión, adjuntar `.apk`, marcar *Latest*) o automatizarla con GitHub Actions (hallazgo de IT-51: la release salió primero sin APK) | ✅ Resuelta en IT-53 |
 | S26 | Release solo con ABIs ARM (`abiFilters` `arm64-v8a`, `armeabi-v7a`): `x86`/`x86_64` son de emulador, ~35 MB sin comprimir, casi todo ML Kit (hallazgo de IT-54) | Pendiente |
-| S27 | Traducción de letras de mejor calidad que ML Kit (p. ej. DeepL con la clave del usuario, ML Kit como respaldo sin conexión) (hallazgo de IT-55) | Pendiente |
+| S27 | Traducción con DeepL: clave del usuario en Ajustes (como Deezer); si se agota el cupo, no hay clave o no hay conexión, usar ML Kit **y avisarlo** en pantalla, igual que se indica la fuente del audio. Mandar la letra entera (no línea a línea) (hallazgo de IT-55; ideas del usuario) | Pendiente (después de podcasts) |
 
 S3 y S5 siguen vigentes en la base H4zh4n (`SpotifyWebPlayer` sigue ahí y desactivado); S4 se resolvió en IT-54.
