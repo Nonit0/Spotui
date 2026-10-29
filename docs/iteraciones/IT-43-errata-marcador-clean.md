@@ -4,7 +4,7 @@
 |---|---|
 | Tipo | Código + test |
 | Depende de | IT-27, IT-28 |
-| Estado | ✅ Hecha (2026-10-29) · pendiente de ejecutar el test (usuario) |
+| Estado | ✅ Hecha (2026-10-29) · test ejecutado por el usuario |
 
 ## 1. Qué hacer
 S14 (hallazgo de IT-27): en `TrackMatcher.kt:110` el término `пensored` empieza por una **п cirílica**, así que el
@@ -18,7 +18,7 @@ Sin riesgo con "uncensored": `markerPattern` exige espacio o inicio/fin alrededo
 - [x] ¿Quién ejecuta el test? → **El usuario.**
 
 ## 3. Salida esperada
-`TrackMatcherTest` en verde (12 tests), incluido el nuevo `versionMarkersTellCensoredFromUncensored`.
+`TrackMatcherTest` en verde (11 tests: 10 de IT-28 + 1), incluido el nuevo `versionMarkersTellCensoredFromUncensored`.
 
 ## 4. Cambios
 | Fichero | Cambio |
@@ -36,3 +36,4 @@ Sin riesgo con "uncensored": `markerPattern` exige espacio o inicio/fin alrededo
 | Fecha | Estado | Resultado real | Commit |
 |---|---|---|---|
 | 2026-10-29 | ✅ Hecha | Test no ejecutado aquí (lo pasa el usuario) | `451ce45` |
+| 2026-10-29 | ✅ Probada | `TrackMatcherTest` 11/11 en verde, 0 fallos, 0 skipped (usuario). La salida esperada decía 12 por error: son 11 | — |
