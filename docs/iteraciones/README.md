@@ -93,6 +93,7 @@ Reglas extra de esta fase:
 | [IT-49](IT-49-version-1-6-0.md) | Versión 1.6.0 para la primera release | `versionName` 1.6.0, `versionCode` 202610290 | Build | IT-48 | ✅ (pendiente de prueba manual) |
 | [IT-50](IT-50-main-en-github.md) | `update-h4zh4n` como nuevo `main` en GitHub | Rama renombrada, `origin` por SSH, `main` sustituido (copia en `archivo/original-1.6`) | Git | IT-49 | ✅ |
 | [IT-51](IT-51-release-v1-6-0.md) | Primera release en GitHub: `v1.6.0` | Tag `v1.6.0` (`42be4a4`), release *Latest* con `Spotui_v1.6.0.apk` firmada con la clave propia | Git | IT-50 | ✅ |
+| [IT-52](IT-52-quitar-debug-keystore.md) | Dejar de versionar `app/debug.keystore` | S22: fuera `sharedDebug` y el `.jks` de H4zh4n; debug y el *fallback* de release usan la clave debug local | Build | IT-47 | ✅ (pendiente de prueba manual) |
 
 #### Correspondencia fase 1 → fase 2
 
@@ -133,7 +134,7 @@ Se convierten en iteración solo si el usuario lo pide. Los IDs no se renumeran:
 | S19 | `QueueScreen` con la misma canción dos veces se cerraba (hallazgo de IT-36) | ✅ Resuelta en IT-37 |
 | S20 | La canción que suena se localiza por id (`currentSongId`): si suena la 2.ª copia de una repetida, la cola se dibuja como si sonara la 1.ª. Llevar la posición en el reproductor (hallazgo de IT-37) | ✅ Resuelta en IT-41 |
 | S21 | Las listas (playlist, álbum, búsqueda…) colorean de verde todas las copias de la canción que suena: comparan por id (hallazgo de IT-41) | ✅ Resuelta en IT-42 |
-| S22 | `app/debug.keystore` sigue en git (lo usan debug y el *fallback* de release): dejar de versionarlo y usar la debug key por defecto de Android (hallazgo de IT-47) | Pendiente |
+| S22 | `app/debug.keystore` sigue en git (lo usan debug y el *fallback* de release): dejar de versionarlo y usar la debug key por defecto de Android (hallazgo de IT-47) | ✅ Resuelta en IT-52 |
 | S23 | Añadir el Ko-fi propio del usuario al README cuando exista (hueco comentado; hallazgo de IT-48) | Pendiente |
 | S24 | Cambiar las capturas del README (son de H4zh4n) por unas propias (hallazgo de IT-48) | Pendiente |
 | S25 | Checklist de release (compilar, comprobar firma/versión, adjuntar `.apk`, marcar *Latest*) o automatizarla con GitHub Actions (hallazgo de IT-51: la release salió primero sin APK) | Pendiente |
