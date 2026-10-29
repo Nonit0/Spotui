@@ -89,7 +89,8 @@ Reglas extra de esta fase:
 | [IT-45](IT-45-cerrar-response-update.md) | Cerrar el `response` de OkHttp en UpdateChecker | S17: `execute().use {}` en `fetchLatestRelease` | Código | IT-31 | ✅ probada |
 | [IT-46](IT-46-provider-test-opt-in.md) | ProviderStreamTest solo bajo demanda | S11: se salta salvo con `-PproviderTests=true` | Test | IT-21 | ✅ probada |
 | [IT-47](IT-47-clave-release-propia.md) | Firmar la release con una clave propia | S12: `keystore.properties` (fuera de git) o, si falta, clave debug compartida | Build | — | ✅ probada |
-| [IT-48](IT-48-readme-fork.md) | README del fork | S10: bilingüe, Ko-fi de H4zh4n fuera, créditos a H4zh4n/Spotui, novedades del fork | Docs | IT-23 | ✅ (pendiente de revisión) |
+| [IT-48](IT-48-readme-fork.md) | README del fork | S10: bilingüe, Ko-fi de H4zh4n fuera, créditos a H4zh4n/Spotui, novedades del fork | Docs | IT-23 | ✅ revisada |
+| [IT-49](IT-49-version-1-6-0.md) | Versión 1.6.0 para la primera release | `versionName` 1.6.0, `versionCode` 202610290 | Build | IT-48 | ✅ (pendiente de prueba manual) |
 
 #### Correspondencia fase 1 → fase 2
 

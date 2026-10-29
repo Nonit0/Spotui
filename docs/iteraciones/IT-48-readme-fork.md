@@ -4,7 +4,7 @@
 |---|---|
 | Tipo | Documentación |
 | Depende de | IT-23 |
-| Estado | ✅ Hecha (2026-10-29) · pendiente de revisión del usuario |
+| Estado | ✅ Hecha (2026-10-29) · revisada por el usuario |
 
 ## 1. Qué hacer
 S10: el `README.md` era el de H4zh4n (badge, Ko-fi y enlaces a su repo). Adaptarlo al fork `Nonit0/Spotui`
@@ -37,3 +37,4 @@ GPL-3.0 y aviso legal.
 | Fecha | Estado | Resultado real | Commit |
 |---|---|---|---|
 | 2026-10-29 | ✅ Hecha | Pendiente de que el usuario lo revise | `439926c` |
+| 2026-10-29 | ✅ Revisada | El usuario lo da por bueno | — |
