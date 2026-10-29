@@ -23,3 +23,7 @@ app/release/
 /.artifacts/
 /AGENT_RULES.md
 AGENT_RULES.md
+
+# Release signing (IT-47)
+keystore.properties
+*.jks

@@ -38,6 +38,17 @@ android {
             keyAlias = "hazhan"
             keyPassword = "android"
         }
+        // Own release key, kept out of git: see keystore.properties.example
+        val releaseProps = rootProject.file("keystore.properties")
+        if (releaseProps.exists()) {
+            val props = java.util.Properties().apply { releaseProps.inputStream().use { load(it) } }
+            create("release") {
+                storeFile = file(props.getProperty("storeFile"))
+                storePassword = props.getProperty("storePassword")
+                keyAlias = props.getProperty("keyAlias")
+                keyPassword = props.getProperty("keyPassword")
+            }
+        }
     }
 
     buildTypes {
@@ -47,9 +58,12 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // Sign release with the shared debug key so the APK is installable via sideload
-            // and upgrades the existing (debug-signed) install in place.
-            signingConfig = signingConfigs.getByName("sharedDebug")
+            // Own key when keystore.properties exists; otherwise the shared debug key so a
+            // fresh clone can still build an installable release.
+            signingConfig = signingConfigs.findByName("release")
+                ?: signingConfigs.getByName("sharedDebug").also {
+                    logger.warn("keystore.properties not found: release is signed with the shared debug key")
+                }
         }
         debug {
             applicationIdSuffix = ".debug"
