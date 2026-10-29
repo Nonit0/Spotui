@@ -15,8 +15,9 @@ GitHub → `Nonit0/Spotui` → Settings → Secrets and variables → Actions �
 
 Las contraseñas no deben contener `\` (rompería el `keystore.properties` que genera el workflow).
 
-Para probar los secrets sin crear release: pestaña **Actions** → *Release* → **Run workflow**. Deja la APK como
-*artifact* de la ejecución.
+Para probar los secrets sin crear release: pestaña **Actions** → *Release* (columna izquierda) → **Run workflow**.
+Al terminar, en la lista de ejecuciones pulsa la de arriba (título del último commit); abajo del todo, en
+**Artifacts**, está `Spotui_v<versión>.apk` para descargar (90 días).
 
 ## Cada release
 1. **Versión** en `app/build.gradle.kts`: `versionName` (p. ej. `1.6.1`) y `versionCode` (`AAAAMMDD` + dígito,

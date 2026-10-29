@@ -18,9 +18,9 @@ jobs:
       # SHA-256 of the Nonit0 release certificate (public, from apksigner --print-certs)
       EXPECTED_CERT_SHA256: a20dca38b82360b1c3bf22208dca437667e0d007db8f76f5a76e0e23bdf7faa6
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "17"
@@ -71,9 +71,10 @@ jobs:
 
       - name: Upload artifact (manual run)
         if: github.ref_type != 'tag'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
-          name: Spotui_v${{ steps.version.outputs.name }}
+          # Uploads the .apk itself (no zip); the artifact is named after the file
+          archive: false
           path: ${{ steps.apk.outputs.path }}
 
       - name: Create draft release

@@ -43,3 +43,4 @@ la release con la APK adjunta, y documentar los pasos.
 | Fecha | Estado | Resultado real | Commit |
 |---|---|---|---|
 | 2026-10-29 | ✅ Hecha | YAML validado en local; no ejecutado (necesita los secrets y el push) | `98ea81b` |
+| 2026-10-29 | ✅ Run manual OK | Ejecución `40911909641` en verde, *artifact* `Spotui_v1.6.0` (zip). Avisos Node 20 → `checkout@v7`, `setup-java@v6`, `upload-artifact@v7` con `archive: false` (APK sin zip) | (siguiente commit) |
