@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
@@ -41,7 +43,7 @@ android {
         // Own release key, kept out of git: see keystore.properties.example
         val releaseProps = rootProject.file("keystore.properties")
         if (releaseProps.exists()) {
-            val props = java.util.Properties().apply { releaseProps.inputStream().use { load(it) } }
+            val props = Properties().apply { releaseProps.inputStream().use { load(it) } }
             create("release") {
                 storeFile = file(props.getProperty("storeFile"))
                 storePassword = props.getProperty("storePassword")
