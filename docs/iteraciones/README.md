@@ -95,6 +95,7 @@ Reglas extra de esta fase:
 | [IT-51](IT-51-release-v1-6-0.md) | Primera release en GitHub: `v1.6.0` | Tag `v1.6.0` (`42be4a4`), release *Latest* con `Spotui_v1.6.0.apk` firmada con la clave propia | Git | IT-50 | ✅ |
 | [IT-52](IT-52-quitar-debug-keystore.md) | Dejar de versionar `app/debug.keystore` | S22: fuera `sharedDebug` y el `.jks` de H4zh4n; debug y el *fallback* de release usan la clave debug local | Build | IT-47 | ✅ probada |
 | [IT-53](IT-53-release-github-actions.md) | Release automática con GitHub Actions | S25: tag `v*` → compila, firma, verifica y crea borrador con la APK; pasos en `docs/RELEASE.md` | CI | IT-52 | ✅ probada |
+| [IT-54](IT-54-minificar-release.md) | Minificar la release con R8 | S4: R8 sin ofuscar + recursos; APK 90,6 → 73,3 MB | Build | IT-47 | ✅ (pendiente de prueba manual) |
 
 #### Correspondencia fase 1 → fase 2
 
@@ -118,7 +119,7 @@ Se convierten en iteración solo si el usuario lo pide. Los IDs no se renumeran:
 | S1 | Trocear `SongPlayer.kt` | Primer trozo → IT-14. Más trozos solo si hace falta |
 | S2 | Tests del matching | → IT-15 |
 | S3 | Quitar `SpotifyWebPlayer` (desactivado) | Pendiente: preguntar si se piensa recuperar |
-| S4 | Activar `isMinifyEnabled` | Pendiente: necesita reglas ProGuard |
+| S4 | Activar `isMinifyEnabled` | ✅ Resuelta en IT-54 |
 | S5 | Subir dependencias / AGP (quita avisos de D8) | Pendiente: una dependencia por iteración |
 | S6 | Cifrar credenciales | 🚫 Descartada en favor de IT-16 (ver su §5) |
 | S7 | Caché de 6 h / `force` en `data/update` | Pendiente, ligada a IT-09 |
@@ -139,6 +140,6 @@ Se convierten en iteración solo si el usuario lo pide. Los IDs no se renumeran:
 | S23 | Añadir el Ko-fi propio del usuario al README cuando exista (hueco comentado; hallazgo de IT-48) | Pendiente |
 | S24 | Cambiar las capturas del README (son de H4zh4n) por unas propias (hallazgo de IT-48) | Pendiente |
 | S25 | Checklist de release (compilar, comprobar firma/versión, adjuntar `.apk`, marcar *Latest*) o automatizarla con GitHub Actions (hallazgo de IT-51: la release salió primero sin APK) | ✅ Resuelta en IT-53 |
+| S26 | Release solo con ABIs ARM (`abiFilters` `arm64-v8a`, `armeabi-v7a`): `x86`/`x86_64` son de emulador, ~35 MB sin comprimir, casi todo ML Kit (hallazgo de IT-54) | Pendiente |
 
-S3, S4 y S5 siguen vigentes en la base H4zh4n (`SpotifyWebPlayer` sigue ahí y desactivado, y
-`isMinifyEnabled = false`).
+S3 y S5 siguen vigentes en la base H4zh4n (`SpotifyWebPlayer` sigue ahí y desactivado); S4 se resolvió en IT-54.

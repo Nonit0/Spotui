@@ -129,7 +129,7 @@ El repo es configurable en Ajustes; por defecto `https://github.com/Nonit0/Spotu
 | D5 | ✅ Resuelta: aviso de actualización (IT-22) y firma de Ajustes `Maintained with ♥ by Nonit0` (IT-23) apuntan a `Nonit0/Spotui` | `SettingsPref.kt:36`, `SettingsScreen.kt:834-839` | IT-22, IT-23 |
 | D6 | ✅ Resuelta: credenciales de Spotify, Deezer y SpotiFLAC excluidas del backup (IT-29). No hay cookie de YouTube (IT-30) | `res/xml/` | IT-29, IT-30 |
 | D7 | Reproductor web de Spotify desactivado pero presente | `di/SpotifyWebPlayer.kt`, `ui/notification/WebMediaPlayer.kt` | S3 |
-| D8 | Release sin minificar (`isMinifyEnabled = false`) → APK de ~100 MB | `app/build.gradle.kts` | S4 |
+| D8 | ✅ Resuelta (IT-54): release con R8 sin ofuscar + recursos, 90,6 → 73,3 MB. Lo que queda son librerías nativas (ML Kit, 4 ABIs) → S26 | `app/build.gradle.kts`, `app/proguard-rules.pro` | S4, S26, IT-54 |
 | D9 | ✅ Resuelta (IT-47): la release se firma con la clave propia de `keystore.properties` (fuera de git); si falta, con la clave debug local de Android y Gradle avisa. Debug usa la clave debug local; `app/debug.keystore` ya no está en git (IT-52) | `app/build.gradle.kts`, `keystore.properties.example` | S12, S22, IT-47, IT-52 |
 
 Estas deudas alimentan el plan de iteraciones en [`iteraciones/README.md`](iteraciones/README.md).
