@@ -96,6 +96,7 @@ Reglas extra de esta fase:
 | [IT-52](IT-52-quitar-debug-keystore.md) | Dejar de versionar `app/debug.keystore` | S22: fuera `sharedDebug` y el `.jks` de H4zh4n; debug y el *fallback* de release usan la clave debug local | Build | IT-47 | ✅ probada |
 | [IT-53](IT-53-release-github-actions.md) | Release automática con GitHub Actions | S25: tag `v*` → compila, firma, verifica y crea borrador con la APK; pasos en `docs/RELEASE.md` | CI | IT-52 | ✅ probada |
 | [IT-54](IT-54-minificar-release.md) | Minificar la release con R8 | S4: R8 sin ofuscar + recursos; APK 90,6 → 73,3 MB | Build | IT-47 | ✅ probada |
+| [IT-55](IT-55-r8-mlkit-traduccion.md) | Traducción y detección de idioma rotas por R8 | Regresión de IT-54: `keep` de ML Kit (factory `null` por reflexión + fusión de clases) | Build | IT-54 | ✅ (pendiente de prueba manual) |
 
 #### Correspondencia fase 1 → fase 2
 
