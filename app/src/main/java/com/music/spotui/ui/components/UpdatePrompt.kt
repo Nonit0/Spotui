@@ -34,6 +34,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
 import com.music.spotui.data.update.UpdateChecker
+import com.music.spotui.data.update.ApkUpdater
+import androidx.compose.runtime.collectAsState
+import androidx.compose.material3.LinearProgressIndicator
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Arrangement
@@ -69,6 +74,17 @@ fun UpdatePrompt() {
     }
 
     val info = update ?: return
+    val progress by ApkUpdater.progress.collectAsState()
+    val ready by ApkUpdater.ready.collectAsState()
+    val directApk = ApkUpdater.isDirectApk(info)
+
+    // IT-63: like an app store, fetch the APK by itself on Wi-Fi (or reuse a previous
+    // download); on mobile data it waits for the user to tap Download.
+    LaunchedEffect(info) {
+        if (!directApk) return@LaunchedEffect
+        val existing = withContext(Dispatchers.IO) { ApkUpdater.downloaded(context, info.version) }
+        if (existing != null || ApkUpdater.isUnmetered(context)) ApkUpdater.startDownload(context, info)
+    }
 
     AlertDialog(
         onDismissRequest = { update = null },
@@ -84,6 +100,20 @@ fun UpdatePrompt() {
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
             ) {
+                progress?.let { p ->
+                    Text("Downloading update… ${(p * 100).toInt()}%", color = Color.White)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    LinearProgressIndicator(
+                        progress = { p },
+                        color = Color(0xFF1DB954),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+                if (ready != null && progress == null) {
+                    Text("Downloaded — ready to install.", color = Color(0xFF1DB954))
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
                 if (info.releaseBody.isNotBlank()) {
                     RenderMarkdown(info.releaseBody)
                 } else {
@@ -95,15 +125,34 @@ fun UpdatePrompt() {
             }
         },
         confirmButton = {
-            TextButton(onClick = {
-                runCatching {
-                    context.startActivity(
-                        Intent(Intent.ACTION_VIEW, Uri.parse(info.downloadUrl))
-                    )
-                }
-                update = null
-            }) {
-                Text("Update", color = Color(0xFF1DB954))
+            val file = ready
+            TextButton(
+                enabled = progress == null,
+                onClick = {
+                    when {
+                        !directApk -> {
+                            // No APK asset in the release: open its page as before.
+                            runCatching {
+                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(info.downloadUrl)))
+                            }
+                            update = null
+                        }
+                        file != null -> {
+                            if (ApkUpdater.install(context, file)) update = null
+                        }
+                        else -> ApkUpdater.startDownload(context, info)
+                    }
+                },
+            ) {
+                Text(
+                    when {
+                        !directApk -> "Update"
+                        progress != null -> "Downloading…"
+                        file != null -> "Install"
+                        else -> "Download"
+                    },
+                    color = Color(0xFF1DB954),
+                )
             }
         },
         dismissButton = {

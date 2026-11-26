@@ -103,7 +103,8 @@ Reglas extra de esta fase:
 | [IT-59](IT-59-cooldown-429-rest.md) | Respetar el `Retry-After` de los 429 del REST | S29: cooldown común (`RateLimitCooldown`); durante el límite no se llama a la red | Código | — | ✅ probada |
 | [IT-60](IT-60-liked-songs-en-inicio.md) | *Liked Songs* en la cuadrícula de Inicio | Primera casilla fija de los accesos rápidos (chips *All* y *Music*) → `Routes.Liked` | Código | — | 🧪 pendiente de prueba |
 | [IT-61](IT-61-like-menu-playlists.md) | Menú «Guardado en» en todos los corazones | Todo botón de like de una canción (esté o no en favoritos) abre `SavedInSheet`: casillas para Liked Songs y tus playlists, y un botón *Save* que aplica los cambios | Código | — | ⏳ pendiente de prueba manual |
-| [IT-62](IT-62-version-1-6-1.md) | Versión 1.6.1 y release | `versionName` 1.6.1 / `versionCode` 202611260; tag `v1.6.1` → borrador de release por Actions | Release | IT-60, IT-61 | 🚀 en curso |
+| [IT-62](IT-62-version-1-6-1.md) | Versión 1.6.1 y release | `versionName` 1.6.1 / `versionCode` 202611260; tag `v1.6.1` → borrador de release por Actions | Release | IT-60, IT-61 | ✅ publicada |
+| [IT-63](IT-63-actualizacion-automatica.md) | Actualizar desde la app | Descarga la APK sola en Wi-Fi con progreso e instala con `PackageInstaller`; la 1.ª vez confirma el usuario, luego (Android 12+) sin diálogo | Código | IT-62 | ⏳ pendiente de prueba manual |
 
 #### Correspondencia fase 1 → fase 2
 

@@ -33,7 +33,10 @@ object UpdateChecker {
         val info = runCatching { fetchLatestRelease(context) }
             .onFailure { Log.d(TAG, "update check failed: ${it.message}") }
             .getOrNull() ?: return@withContext null
-        if (!isNewer(info.version, BuildConfig.VERSION_NAME)) return@withContext null
+        if (!isNewer(info.version, BuildConfig.VERSION_NAME)) {
+            ApkUpdater.clean(context) // already up to date: drop old downloaded APKs
+            return@withContext null
+        }
         val skipped = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getString(KEY_SKIP, null)
         if (skipped == info.fingerprint) return@withContext null

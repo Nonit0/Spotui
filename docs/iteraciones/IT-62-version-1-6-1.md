@@ -4,7 +4,7 @@
 |---|---|
 | Tipo | Código / Release |
 | Depende de | IT-60, IT-61 |
-| Estado | 🚀 En curso |
+| Estado | ✅ Publicada |
 
 ## 1. Qué hacer
 Subir la versión a `1.6.1` (`versionCode` `202611260`) y sacar la release siguiendo `docs/RELEASE.md`
@@ -37,3 +37,4 @@ cooldown de los 429, *Liked Songs* en Inicio, menú «Guardado en» al dar like)
 | Fecha | Estado | Resultado real | Commit |
 |---|---|---|---|
 | 2026-11-26 | 🚀 Borrador listo | Workflow 45903412268 en verde (4 min 58 s); borrador `Spotui v1.6.1` con `Spotui_v1.6.1.apk` (73 MB), firma `CN=Nonit0` (SHA-256 a20dca38…faa6), versionCode 202611260 comprobados. Falta publicar como *Latest* | `f0c6971` |
+| 2026-11-26 | ✅ Publicada | Borrador publicado como *Latest* a petición del usuario | — |
