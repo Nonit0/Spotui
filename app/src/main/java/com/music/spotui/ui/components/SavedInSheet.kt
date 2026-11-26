@@ -67,6 +67,9 @@ import com.music.spotui.data.preferences.isSongLiked
 import com.music.spotui.data.preferences.removeLikedSongId
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
 
 private val SpotifyGreen = Color(0xFF1ED760)
@@ -117,14 +120,31 @@ fun SavedInSheet(
         val localNames = locals.map { it.name.trim().lowercase() }.toSet()
 
         remotePlaylists = withContext(Dispatchers.IO) {
-            // Only playlists the user can write to: their own. (When the profile can't be
+            // Only playlists the user can write to: their own, plus other people's that
+            // Spotify marks as editable for us (collaborative). (When the profile can't be
             // fetched we can't tell, so keep them all and let a failed add report the error.)
             val myId = SpotifyTokenProvider.ensureToken(context.applicationContext)
                 .let { if (it) Spotify.me().getOrNull()?.id else null }
-            val items = Spotify.myPlaylists().getOrNull()?.items
+            val all = Spotify.myPlaylists().getOrNull()?.items
                 ?.filter { it.id.isNotBlank() }
-                ?.filter { myId == null || it.owner?.id.isNullOrBlank() || it.owner?.id == myId || it.collaborative }
                 ?: emptyList()
+            fun isMine(p: SpotifyPlaylist) = myId == null || p.owner?.id.isNullOrBlank() || p.owner?.id == myId
+            // Someone else's playlist the library listing didn't classify: ask its detail
+            // (fetchPlaylist carries the capabilities / members), a few at a time.
+            val unknown = all.filter { !isMine(it) && it.canEdit == null && !it.collaborative }
+            val resolved: Map<String, Boolean> = coroutineScope {
+                unknown.chunked(4).flatMap { batch ->
+                    batch.map { p ->
+                        async {
+                            val d = Spotify.playlist(p.id).getOrNull()
+                            p.id to (d?.canEdit ?: d?.collaborative ?: false)
+                        }
+                    }.awaitAll()
+                }.toMap()
+            }
+            val items = all.filter { p ->
+                isMine(p) || p.canEdit ?: (p.collaborative || resolved[p.id] == true)
+            }
             items.distinctBy { cleanId(it.id).ifBlank { it.name.trim().lowercase() } }
                 .filterNot { item ->
                     val cid = cleanId(item.id)

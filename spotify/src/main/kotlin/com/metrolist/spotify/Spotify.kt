@@ -40,6 +40,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -165,6 +166,22 @@ object Spotify {
         } catch (_: Exception) {
             null
         }
+
+    private fun JsonObject.bool(key: String): Boolean? =
+        try {
+            this[key]?.takeIf { it !is JsonNull }?.jsonPrimitive?.booleanOrNull
+        } catch (_: Exception) {
+            null
+        }
+
+    /** Whether the current user may add/remove items, when the playlist object says so
+     *  (`currentUserCapabilities.canEditItems`); null when the response doesn't carry it. */
+    private fun JsonObject.canEditItems(): Boolean? =
+        obj("currentUserCapabilities")?.bool("canEditItems")
+
+    /** Collaborative hint: more than one member, or an explicit flag when present. */
+    private fun JsonObject.isCollaborative(): Boolean =
+        bool("collaborative") == true || (obj("members")?.arr("items")?.size ?: 0) > 1
 
     // ── GraphQL core ─────────────────────────────────────────────────────
 
@@ -717,6 +734,8 @@ object Spotify {
                 uri = ownerData?.str("uri"),
             ),
             uri = playlistUri,
+            collaborative = data.isCollaborative(),
+            canEdit = data.canEditItems(),
         )
     }
 
@@ -930,7 +949,8 @@ object Spotify {
                         uri = ownerUri.ifEmpty { null },
                     ),
                 tracks = SpotifyPlaylistTracksRef(total = playlist.obj("content")?.int("totalCount") ?: 0),
-                collaborative = (playlist.obj("members")?.arr("items")?.size ?: 0) > 1,
+                collaborative = playlist.isCollaborative(),
+                canEdit = playlist.canEditItems(),
             )
         }
 

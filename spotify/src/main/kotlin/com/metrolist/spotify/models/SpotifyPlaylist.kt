@@ -14,6 +14,8 @@ data class SpotifyPlaylist(
     val uri: String? = null,
     val public: Boolean? = null,
     val collaborative: Boolean = false,
+    /** Whether the current user can add/remove tracks; null = Spotify didn't say. */
+    val canEdit: Boolean? = null,
     @SerialName("snapshot_id") val snapshotId: String? = null,
 )
 

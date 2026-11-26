@@ -33,6 +33,9 @@ añadirla/quitarla de Liked Songs directamente.
 | `ui/components/AppComponents.kt` | Mini-reproductor: el `+` abre el sheet |
 | `ui/screens/AlbumScreen.kt`, `ArtistScreen.kt`, `SearchScreen.kt`, `ui/components/LikedSongsAlbum.kt` | `onClick` abre el sheet; `onLikedChanged` refresca el `likeState` compartido |
 | `ui/components/SongOptionsSheet.kt` | La fila de like abre el sheet |
+| `spotify/…/Spotify.kt`, `models/SpotifyPlaylist.kt` | *(fix)* Nuevo campo `canEdit` (`currentUserCapabilities.canEditItems`, null si no viene) y `collaborative` (flag o >1 miembro) leídos en `libraryV3` y `fetchPlaylist`; antes `collaborative` era siempre `false` en la biblioteca |
+| `ui/components/SavedInSheet.kt` | *(fix)* Muestra también playlists ajenas editables: `canEdit`/`collaborative` del listado y, si no viene, consulta `Spotify.playlist(id)` (de 4 en 4) |
+| `data/api/SpotifySync.kt` | *(fix)* `allPlaylistItems` recorre todas las páginas de 100; `removeTrackFromPlaylist` y `playlistTrackIds` ya no se limitan a las 100 primeras pistas. Una lectura fallida no se cachea |
 
 API usada (ya existía): `SpotifySync.addTrackToPlaylist` / `removeTrackFromPlaylist` (GQL `addToPlaylist` /
 `removeFromPlaylist`, no el REST con 429), `SpotifySync.setTrackSaved`, `LocalPlaylistPref`.
@@ -41,15 +44,12 @@ API usada (ya existía): `SpotifySync.addTrackToPlaylist` / `removeTrackFromPlay
 No se tocan IT-60, ni la creación de playlists, ni `BackupHelper`/`Api` (siguen usando `addLikedSongId` directo).
 
 ## 6. Sugerencias (nuevas iteraciones candidatas)
-- **Playlists colaborativas**: `parsePlaylistWrapper` (`Spotify.kt`) no rellena `collaborative` (siempre `false`) y
-  `libraryV3` no se ha comprobado que lo dé, así que las colaborativas ajenas quedan **ocultas** en el menú. Leer ese
-  campo del GQL y mostrarlas.
-- `SpotifySync.removeTrackFromPlaylist` solo mira las primeras 100 pistas de la playlist; en listas largas puede no
-  encontrar la canción (igual que `playlistTrackIds` para marcar el estado).
 - Estado de las playlists remotas: se pide una a una al abrir (cacheado por sesión); con muchas playlists son muchas peticiones.
+- `Spotify.myPlaylists()` solo pide 50 elementos: con más de 50 playlists en la biblioteca, el resto no sale en el menú.
 - Si una escritura en playlist remota falla solo sale un Toast genérico; no se revierte nada (ya se cerró el menú).
 
 ## 7. Registro
 | Fecha | Estado | Resultado real | Commit |
 |---|---|---|---|
 | 2026-11-26 | ⏳ Hecha, sin compilar | Código escrito sin ejecutar Gradle; falta prueba manual en Android Studio / móvil | ver `git log` (`feat: … (IT-61)`) |
+| 2026-11-26 | ⏳ Fix sin compilar | Colaborativas ajenas visibles y playlists >100 canciones; pendiente de prueba manual. Ojo: no se ha visto una respuesta real de `libraryV3`/`fetchPlaylist` con `currentUserCapabilities`; si no viene, se cae a `members` | ver `git log` (`fix: … (IT-61)`) |
