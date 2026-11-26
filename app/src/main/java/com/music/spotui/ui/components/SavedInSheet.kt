@@ -58,6 +58,7 @@ import com.metrolist.spotify.models.SpotifyPlaylist
 import com.music.spotui.R
 import com.music.spotui.data.api.Api
 import com.music.spotui.data.api.SpotifySync
+import com.music.spotui.data.api.SpotifyTokenProvider
 import com.music.spotui.data.entity.SongsModel
 import com.music.spotui.data.preferences.LocalPlaylist
 import com.music.spotui.data.preferences.LocalPlaylistPref
@@ -71,8 +72,10 @@ import kotlinx.coroutines.withContext
 private val SpotifyGreen = Color(0xFF1ED760)
 
 /**
- * Spotify-style "Saved in" sheet: Liked Songs plus local playlists and Spotify user playlists.
- * Allows toggling tracks into/out of playlists and creating new ones on Spotify (local on device if that fails).
+ * Spotify-style "Saved in" sheet: Liked Songs plus local playlists and the user's own Spotify
+ * playlists. It is the single flow behind every song heart button (IT-61): rows are checkboxes
+ * that only stage a change; nothing is saved or removed until the user taps "Save". Dismissing
+ * the sheet discards the staged changes. Creating a new playlist is the one immediate action.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalGlideComposeApi::class)
 @Composable
@@ -83,7 +86,14 @@ fun SavedInSheet(
     onLikedChanged: (Boolean) -> Unit = {},
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var liked by remember { mutableStateOf(isSongLiked(context, song.id.toString())) }
+    val initialLiked = remember { isSongLiked(context, song.id.toString()) }
+    // Staged changes only: key → desired state, kept while it differs from the initial one.
+    // Keys: "liked", "local:<id>", "remote:<id>".
+    val pending = remember { mutableStateMapOf<String, Boolean>() }
+    val liked = pending["liked"] ?: initialLiked
+    fun stage(key: String, initial: Boolean, current: Boolean) {
+        if (!current == initial) pending.remove(key) else pending[key] = !current
+    }
     var localPlaylists by remember { mutableStateOf<List<LocalPlaylist>>(emptyList()) }
     var remotePlaylists by remember { mutableStateOf<List<SpotifyPlaylist>?>(null) }
     // playlistId → does it contain this track (filled lazily/locally per row).
@@ -107,7 +117,14 @@ fun SavedInSheet(
         val localNames = locals.map { it.name.trim().lowercase() }.toSet()
 
         remotePlaylists = withContext(Dispatchers.IO) {
-            val items = Spotify.myPlaylists().getOrNull()?.items?.filter { it.id.isNotBlank() } ?: emptyList()
+            // Only playlists the user can write to: their own. (When the profile can't be
+            // fetched we can't tell, so keep them all and let a failed add report the error.)
+            val myId = SpotifyTokenProvider.ensureToken(context.applicationContext)
+                .let { if (it) Spotify.me().getOrNull()?.id else null }
+            val items = Spotify.myPlaylists().getOrNull()?.items
+                ?.filter { it.id.isNotBlank() }
+                ?.filter { myId == null || it.owner?.id.isNullOrBlank() || it.owner?.id == myId || it.collaborative }
+                ?: emptyList()
             items.distinctBy { cleanId(it.id).ifBlank { it.name.trim().lowercase() } }
                 .filterNot { item ->
                     val cid = cleanId(item.id)
@@ -137,6 +154,37 @@ fun SavedInSheet(
             creating = false
             isCreatingPlaylist = false
         }
+    }
+
+    fun applyNow() {
+        val changes = pending.toMap()
+        val songId = song.id.toString()
+        changes.forEach { (key, want) ->
+            when {
+                key == "liked" -> {
+                    if (want) addLikedSongId(context, songId) else removeLikedSongId(context, songId)
+                    SpotifySync.setTrackSaved(context, song.spotifyTrackId, want)
+                }
+                key.startsWith("local:") -> {
+                    val id = key.removePrefix("local:")
+                    if (want) LocalPlaylistPref.addSongToPlaylist(context, id, song)
+                    else LocalPlaylistPref.removeSongFromPlaylist(context, id, song.id, song.spotifyTrackId)
+                    Api.HomeCache.library = null
+                }
+                key.startsWith("remote:") -> {
+                    val id = key.removePrefix("remote:")
+                    val done: (Boolean) -> Unit = { ok ->
+                        if (!ok) android.os.Handler(android.os.Looper.getMainLooper()).post {
+                            android.widget.Toast.makeText(context, "Couldn't update a Spotify playlist", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    if (want) SpotifySync.addTrackToPlaylist(context, id, song.spotifyTrackId, done)
+                    else SpotifySync.removeTrackFromPlaylist(context, id, song.spotifyTrackId, done)
+                }
+            }
+        }
+        if (changes.containsKey("liked")) onLikedChanged(changes.getValue("liked"))
+        onDismiss()
     }
 
     ModalBottomSheet(
@@ -237,18 +285,15 @@ fun SavedInSheet(
                             }
                         },
                     ) {
-                        liked = !liked
-                        if (liked) addLikedSongId(context, song.id.toString())
-                        else removeLikedSongId(context, song.id.toString())
-                        SpotifySync.setTrackSaved(context, song.spotifyTrackId, liked)
-                        onLikedChanged(liked)
+                        stage("liked", initialLiked, liked)
                     }
                 }
 
                 // ── Local Playlists ──
                 items(localPlaylists.size, key = { "local_${localPlaylists[it].id}" }) { index ->
                     val pl = localPlaylists[index]
-                    val saved = membership[pl.id] ?: LocalPlaylistPref.isSongInPlaylist(context, pl.id, song.id, song.spotifyTrackId)
+                    val initial = LocalPlaylistPref.isSongInPlaylist(context, pl.id, song.id, song.spotifyTrackId)
+                    val saved = pending["local:${pl.id}"] ?: membership[pl.id] ?: initial
                     SavedInRow(
                         name = pl.name,
                         subtitle = "${pl.songs.size} song" + (if (pl.songs.size == 1) "" else "s"),
@@ -267,16 +312,7 @@ fun SavedInSheet(
                             )
                         },
                     ) {
-                        val isCurrentlySaved = membership[pl.id] ?: LocalPlaylistPref.isSongInPlaylist(context, pl.id, song.id, song.spotifyTrackId)
-                        if (isCurrentlySaved) {
-                            LocalPlaylistPref.removeSongFromPlaylist(context, pl.id, song.id, song.spotifyTrackId)
-                            membership[pl.id] = false
-                        } else {
-                            LocalPlaylistPref.addSongToPlaylist(context, pl.id, song)
-                            membership[pl.id] = true
-                        }
-                        localPlaylists = LocalPlaylistPref.getLocalPlaylists(context)
-                        Api.HomeCache.library = null
+                        stage("local:${pl.id}", membership[pl.id] ?: initial, saved)
                     }
                 }
 
@@ -291,7 +327,7 @@ fun SavedInSheet(
                             }
                         }
                     }
-                    val saved = membership[pl.id] == true
+                    val saved = pending["remote:${pl.id}"] ?: (membership[pl.id] == true)
                     SavedInRow(
                         name = pl.name,
                         subtitle = pl.tracks?.total?.let { n -> "$n song" + (if (n == 1) "" else "s") } ?: "",
@@ -310,14 +346,33 @@ fun SavedInSheet(
                             )
                         },
                     ) {
+                        // Ignore taps until we know whether the playlist already has the track.
+                        val initial = membership[pl.id] ?: return@SavedInRow
                         if (song.spotifyTrackId.isBlank()) return@SavedInRow
-                        membership[pl.id] = !saved
-                        if (saved) SpotifySync.removeTrackFromPlaylist(context, pl.id, song.spotifyTrackId)
-                        else SpotifySync.addTrackToPlaylist(context, pl.id, song.spotifyTrackId)
+                        stage("remote:${pl.id}", initial, saved)
                     }
                 }
             }
-            Spacer(modifier = Modifier.padding(10.dp))
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp, 12.dp, 20.dp, 12.dp)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(if (pending.isEmpty()) Color(0xFF2A2A2A) else SpotifyGreen)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) { applyNow() }
+                    .padding(vertical = 12.dp),
+            ) {
+                Text(
+                    if (pending.isEmpty()) "Done" else "Save",
+                    color = if (pending.isEmpty()) Color.White else Color.Black,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
         }
     }
 }

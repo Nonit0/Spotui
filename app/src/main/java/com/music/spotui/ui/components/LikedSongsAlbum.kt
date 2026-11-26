@@ -268,7 +268,10 @@ fun LikedSongsScreen(
                             song = likedSongs[song],
                             context = context,
                             onDismiss = { showSavedIn = false },
-                            onLikedChanged = { isLiked = it },
+                            onLikedChanged = {
+                                isLiked = it
+                                albumViewModel.updateLikeState(!albumViewModel.likeState.value)
+                            },
                         )
                     }
                     val songId = likedSongs[song].id
@@ -347,15 +350,7 @@ fun LikedSongsScreen(
                                     .combinedClickable(
                                         interactionSource = remember { MutableInteractionSource() },
                                         indication = null,
-                                        onClick = {
-                                            if (isLiked) {
-                                                removeLikedSongId(context, songId.toString())
-                                            } else {
-                                                addLikedSongId(context, songId.toString())
-                                            }
-                                            //isLiked = isSongLiked(context, songId.toString())
-                                            albumViewModel.updateLikeState(!albumViewModel.likeState.value)
-                                        },
+                                        onClick = { showSavedIn = true },
                                         onLongClick = { showSavedIn = true },
                                     ),
                                 painter = if (isLiked){
