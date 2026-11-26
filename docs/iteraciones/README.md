@@ -101,6 +101,7 @@ Reglas extra de esta fase:
 | [IT-57](IT-57-episodios-reproductor-web.md) | Episodios por el reproductor web | S28 (A): episodios al reproductor web si hay Widevine (`canPlay=true` en el móvil), aunque la música siga sin él | Código | IT-56 | ❌ descartada (web no reproduce: falla `apresolve`) |
 | [IT-58](IT-58-podcasts-no-disponibles.md) | Aviso *podcasts no disponibles* | S28 (B): episodio → Toast + error en el reproductor, sin buscar en YouTube; `prefetch` ignora episodios; el chip *Podcasts*, la pantalla de un show y el recuadro *Podcasts* de Search muestran el aviso | Código | IT-57 | ✅ probada |
 | [IT-59](IT-59-cooldown-429-rest.md) | Respetar el `Retry-After` de los 429 del REST | S29: cooldown común (`RateLimitCooldown`); durante el límite no se llama a la red | Código | — | ✅ probada |
+| [IT-60](IT-60-liked-songs-en-inicio.md) | *Liked Songs* en la cuadrícula de Inicio | Primera casilla fija de los accesos rápidos (chips *All* y *Music*) → `Routes.Liked` | Código | — | 🧪 pendiente de prueba |
 
 #### Correspondencia fase 1 → fase 2
 
