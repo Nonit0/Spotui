@@ -4,7 +4,7 @@
 |---|---|
 | Tipo | Release |
 | Depende de | IT-63 |
-| Estado | 🚀 En curso |
+| Estado | ✅ Publicada |
 
 ## 1. Qué hacer
 Subir la versión a `1.6.2` (`versionCode` `202611261`) y publicar la release con las actualizaciones desde la app (IT-63).
@@ -34,3 +34,4 @@ siguientes actualizaciones ya van desde la app.
 ## 7. Registro
 | Fecha | Estado | Resultado real | Commit |
 |---|---|---|---|
+| 2026-11-26 | ✅ Publicada | Workflow 45904846679 en verde; `Spotui_v1.6.2.apk` firmada `CN=Nonit0`, versionCode 202611261, lleva `REQUEST_INSTALL_PACKAGES`/`ENFORCE_UPDATE_OWNERSHIP` y `ApkUpdater`; publicada como *Latest* | `788e95c` |

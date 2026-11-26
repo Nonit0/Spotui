@@ -105,7 +105,7 @@ Reglas extra de esta fase:
 | [IT-61](IT-61-like-menu-playlists.md) | Menú «Guardado en» en todos los corazones | Todo botón de like de una canción (esté o no en favoritos) abre `SavedInSheet`: casillas para Liked Songs y tus playlists, y un botón *Save* que aplica los cambios | Código | — | ⏳ pendiente de prueba manual |
 | [IT-62](IT-62-version-1-6-1.md) | Versión 1.6.1 y release | `versionName` 1.6.1 / `versionCode` 202611260; tag `v1.6.1` → borrador de release por Actions | Release | IT-60, IT-61 | ✅ publicada |
 | [IT-63](IT-63-actualizacion-automatica.md) | Actualizar desde la app | Descarga la APK sola en Wi-Fi con progreso e instala con `PackageInstaller`; la 1.ª vez confirma el usuario, luego (Android 12+) sin diálogo | Código | IT-62 | ⏳ pendiente de prueba manual |
-| [IT-64](IT-64-version-1-6-2.md) | Versión 1.6.2 y release | `versionName` 1.6.2 / `versionCode` 202611261; release con IT-63 | Release | IT-63 | 🚀 en curso |
+| [IT-64](IT-64-version-1-6-2.md) | Versión 1.6.2 y release | `versionName` 1.6.2 / `versionCode` 202611261; release con IT-63 | Release | IT-63 | ✅ publicada |
 
 #### Correspondencia fase 1 → fase 2
 
