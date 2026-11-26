@@ -429,14 +429,7 @@ fun MiniPlayer(navController: NavHostController) {
                             .combinedClickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
-                                onClick = {
-                                    addLikedSongId(context, songId.toString())
-                                    isLiked = true
-                                    miniPlayerViewModel.updateLikeState(!likeState)
-                                    // Mirror the like to the real Spotify account.
-                                    com.music.spotui.data.api.SpotifySync.setTrackSaved(
-                                        context, currentTrack?.spotifyTrackId.orEmpty(), true)
-                                },
+                                onClick = { showSavedIn = true },
                                 onLongClick = { showSavedIn = true },
                             ),
                         painter = painterResource(id = R.drawable.ic_add),

@@ -102,6 +102,7 @@ Reglas extra de esta fase:
 | [IT-58](IT-58-podcasts-no-disponibles.md) | Aviso *podcasts no disponibles* | S28 (B): episodio → Toast + error en el reproductor, sin buscar en YouTube; `prefetch` ignora episodios; el chip *Podcasts*, la pantalla de un show y el recuadro *Podcasts* de Search muestran el aviso | Código | IT-57 | ✅ probada |
 | [IT-59](IT-59-cooldown-429-rest.md) | Respetar el `Retry-After` de los 429 del REST | S29: cooldown común (`RateLimitCooldown`); durante el límite no se llama a la red | Código | — | ✅ probada |
 | [IT-60](IT-60-liked-songs-en-inicio.md) | *Liked Songs* en la cuadrícula de Inicio | Primera casilla fija de los accesos rápidos (chips *All* y *Music*) → `Routes.Liked` | Código | — | 🧪 pendiente de prueba |
+| [IT-61](IT-61-like-menu-playlists.md) | Menú «Guardado en» en todos los corazones | Todo botón de like de una canción (esté o no en favoritos) abre `SavedInSheet`: casillas para Liked Songs y tus playlists, y un botón *Save* que aplica los cambios | Código | — | ⏳ pendiente de prueba manual |
 
 #### Correspondencia fase 1 → fase 2
 

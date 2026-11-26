@@ -546,7 +546,10 @@ fun SearchSongRow(
             song = song,
             context = context,
             onDismiss = { showSavedIn = false },
-            onLikedChanged = { isLiked = it },
+            onLikedChanged = {
+                isLiked = it
+                searchViewModel.updateLikeState(!searchViewModel.likeState.value)
+            },
         )
     }
     val likeState = searchViewModel.likeState.value
@@ -640,12 +643,7 @@ fun SearchSongRow(
                     .combinedClickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
-                        onClick = {
-                            if (isLiked) removeLikedSongId(context, song.id.toString())
-                            else addLikedSongId(context, song.id.toString())
-                            isLiked = isSongLiked(context, song.id.toString())
-                            searchViewModel.updateLikeState(!searchViewModel.likeState.value)
-                        },
+                        onClick = { showSavedIn = true },
                         onLongClick = { showSavedIn = true },
                     ),
                 painter = if (isLiked) painterResource(id = R.drawable.added) else painterResource(

@@ -167,11 +167,8 @@ fun SongOptionsSheet(
                 label = if (liked) "Remove from Liked Songs" else "Add to Liked Songs",
                 iconTint = if (liked) Color(AppPalette.toArgb()) else Color.White,
             ) {
-                if (liked) removeLikedSongId(context, song.id.toString())
-                else addLikedSongId(context, song.id.toString())
-                liked = !liked
-                // Mirror the like to the real Spotify account.
-                com.music.spotui.data.api.SpotifySync.setTrackSaved(context, song.spotifyTrackId, liked)
+                // Same flow as every heart button: choose Liked Songs / playlists in the sheet.
+                showSavedIn = true
             }
             SongMenuRow(
                 icon = if (downloaded) Icons.Default.CheckCircle else ImageVector.vectorResource(R.drawable.ic_download),

@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.metrolist.spotify.Spotify
 import com.metrolist.spotify.models.SpotifyPlaylist
+import com.metrolist.spotify.models.SpotifyPlaylistTrack
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -72,8 +73,9 @@ object SpotifySync {
         scope.launch {
             if (!SpotifyTokenProvider.ensureToken(app)) { onDone(false); return@launch }
             val uri = "spotify:track:$trackId"
-            val refs = Spotify.playlistTracks(playlistId, limit = 100).getOrNull()
-                ?.items.orEmpty()
+            val items = allPlaylistItems(playlistId)
+            if (items == null) { Log.w(TAG, "couldn't read playlist $playlistId to remove $trackId"); onDone(false); return@launch }
+            val refs = items
                 .filter { it.track?.id == trackId || it.track?.uri == uri }
                 .mapNotNull { pt -> pt.uid?.let { Spotify.PlaylistItemRef(uri = uri, uid = it) } }
             val ok = refs.isNotEmpty() &&
@@ -109,6 +111,25 @@ object SpotifySync {
         return playlist
     }
 
+    /** Every item of [playlistId], walking all pages of 100 (not just the first one),
+     *  or null when a page can't be fetched (so callers don't mistake a partial
+     *  read for "the track isn't there"). */
+    private suspend fun allPlaylistItems(playlistId: String): List<SpotifyPlaylistTrack>? {
+        val pageSize = 100
+        val all = mutableListOf<SpotifyPlaylistTrack>()
+        var offset = 0
+        // Hard cap (Spotify playlists top out around 10k items) so a bad `total` can't loop forever.
+        while (offset < 20_000) {
+            val page = Spotify.playlistTracks(playlistId, limit = pageSize, offset = offset).getOrNull()
+                ?: return null
+            all += page.items
+            offset += pageSize
+            val done = if (page.total > 0) offset >= page.total else page.items.size < pageSize
+            if (page.items.isEmpty() || done) break
+        }
+        return all
+    }
+
     // ── Playlist membership (which playlists contain a track) ──
     // Cached per playlist for the app session so the "Saved in" sheet can show
     // check marks without re-fetching on every open.
@@ -118,8 +139,10 @@ object SpotifySync {
     suspend fun playlistTrackIds(context: Context, playlistId: String): Set<String> {
         membershipCache[playlistId]?.let { return it }
         if (!SpotifyTokenProvider.ensureToken(context.applicationContext)) return emptySet()
-        val ids = Spotify.playlistTracks(playlistId, limit = 100).getOrNull()
-            ?.items.orEmpty()
+        // A failed read is not cached, so the next open retries instead of showing
+        // the song as "not in this playlist" for the rest of the session.
+        val items = allPlaylistItems(playlistId) ?: return emptySet()
+        val ids = items
             .mapNotNull { it.track?.id?.ifBlank { null } }
             .toMutableSet()
         val set = ConcurrentHashMap.newKeySet<String>().apply { addAll(ids) }

@@ -1148,10 +1148,9 @@ fun PlayerInfo(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
                         onClick = {
-                            if (isLiked.value && onShowSavedIn != null) {
-                                // Already saved — second tap opens the Spotify-style
-                                // "Saved in" sheet (Liked Songs + playlists) instead of
-                                // silently unliking.
+                            if (onShowSavedIn != null) {
+                                // Always open the "Saved in" sheet (Liked Songs + playlists),
+                                // whether or not the song is already liked (IT-61).
                                 onShowSavedIn()
                                 return@combinedClickable
                             }
@@ -2082,17 +2081,8 @@ fun PlayerOptionsSheet(
                     iconTint = if (isLiked.value) Color(AppPalette.toArgb()) else Color.White,
                     label = if (isLiked.value) "Remove from Liked Songs" else "Add to Liked Songs"
                 ) {
-                    if (isLiked.value) {
-                        removeLikedSongId(context, songId.toString())
-                    } else {
-                        addLikedSongId(context, songId.toString())
-                    }
-                    isLiked.value = isSongLiked(context, songId.toString())
-                    // Mirror the like to the real Spotify account.
-                    com.music.spotui.data.api.SpotifySync.setTrackSaved(
-                        context, currentSong?.spotifyTrackId.orEmpty(), isLiked.value
-                    )
-                    onDismiss()
+                    // Same flow as every heart button: choose Liked Songs / playlists in the sheet.
+                    showSavedIn = true
                 }
                 PlayerMenuRow(
                     icon = Icons.Default.Add,

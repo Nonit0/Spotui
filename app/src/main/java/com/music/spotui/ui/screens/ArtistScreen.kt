@@ -509,7 +509,10 @@ private fun PopularTrackRow(
             song = song,
             context = context,
             onDismiss = { showSavedIn = false },
-            onLikedChanged = { isLiked = it },
+            onLikedChanged = {
+                isLiked = it
+                artistViewModel.updateLikeState(!artistViewModel.likeState.value)
+            },
         )
     }
     val likeState = artistViewModel.likeState.value
@@ -579,12 +582,7 @@ private fun PopularTrackRow(
                     .combinedClickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
-                        onClick = {
-                            if (isLiked) removeLikedSongId(context, song.id.toString())
-                            else addLikedSongId(context, song.id.toString())
-                            isLiked = isSongLiked(context, song.id.toString())
-                            artistViewModel.updateLikeState(!artistViewModel.likeState.value)
-                        },
+                        onClick = { showSavedIn = true },
                         onLongClick = { showSavedIn = true },
                     ),
             )

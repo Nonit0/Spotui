@@ -644,7 +644,10 @@ fun SumUpAlbumScreen(
                                 song = targetSong,
                                 context = context,
                                 onDismiss = { showSavedIn = false },
-                                onLikedChanged = { isLiked = it },
+                                onLikedChanged = {
+                                    isLiked = it
+                                    albumViewModel.updateLikeState(!albumViewModel.likeState.value)
+                                },
                             )
                         }
                         val likeState = albumViewModel.likeState.value
@@ -728,15 +731,7 @@ fun SumUpAlbumScreen(
                                         .combinedClickable(
                                             interactionSource = remember { MutableInteractionSource() },
                                             indication = null,
-                                            onClick = {
-                                                if (isLiked) {
-                                                    removeLikedSongId(context, songId.toString())
-                                                } else {
-                                                    addLikedSongId(context, songId.toString())
-                                                }
-                                                isLiked = isSongLiked(context, songId.toString())
-                                                albumViewModel.updateLikeState(!albumViewModel.likeState.value)
-                                            },
+                                            onClick = { showSavedIn = true },
                                             onLongClick = { showSavedIn = true },
                                         ),
                                     painter = if (isLiked) {
