@@ -34,6 +34,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircleOutline
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
@@ -284,10 +285,8 @@ fun HomeFeedContent(
                 onResetFilters = { homeViewModel.resetFilters() }
             )
         }
-        gridSection?.let { section ->
-            item {
-                HomeShortcutGrid(navController, section.items.take(8))
-            }
+        item {
+            HomeShortcutGrid(navController, gridSection?.items.orEmpty())
         }
         items(carousels.size) { i ->
             HomeFeedSection(navController, carousels[i])
@@ -599,11 +598,9 @@ private fun HomeMusicFeedContent(
             }
         } else {
             // ── Standard Music Feed ──
-            val gridItems = feed?.sections?.firstOrNull()?.items.orEmpty().take(8)
-            if (gridItems.isNotEmpty()) {
-                item {
-                    HomeShortcutGrid(navController, gridItems)
-                }
+            val gridItems = feed?.sections?.firstOrNull()?.items.orEmpty()
+            item {
+                HomeShortcutGrid(navController, gridItems)
             }
             if (filteredSongs.isNotEmpty()) {
                 item {
@@ -1197,8 +1194,12 @@ private fun HomeAudiobooksFeedContent(
 @OptIn(ExperimentalGlideComposeApi::class)
 @Composable
 private fun HomeShortcutGrid(navController: NavController, items: List<HomeItem>) {
+    // IT-60: Spotify's feed no longer sends "Liked Songs" through the API, so the
+    // first tile is always ours (null = Liked Songs) followed by up to 7 feed items.
+    val tiles: List<HomeItem?> = listOf<HomeItem?>(null) +
+        items.filterNot { it.name.equals("Liked Songs", ignoreCase = true) }.take(7)
     Column(modifier = Modifier.padding(8.dp, 4.dp)) {
-        items.chunked(2).forEach { rowItems ->
+        tiles.chunked(2).forEach { rowItems ->
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier
@@ -1216,18 +1217,41 @@ private fun HomeShortcutGrid(navController: NavController, items: List<HomeItem>
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
-                            ) { onHomeItemClick(navController, item) },
+                            ) {
+                                if (item == null) navController.navigate(Routes.Liked.route)
+                                else onHomeItemClick(navController, item)
+                            },
                     ) {
-                        GlideImage(
-                            modifier = Modifier.size(48.dp),
-                            contentScale = ContentScale.Crop,
-                            model = item.imageUrl,
-                            loading = placeholder(R.drawable.placeholder),
-                            failure = placeholder(R.drawable.placeholder),
-                            contentDescription = "",
-                        )
+                        if (item == null) {
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .background(
+                                        Brush.linearGradient(
+                                            colors = listOf(Color(0xFF450AF5), Color(0xFF8E8E93))
+                                        )
+                                    ),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Favorite,
+                                    contentDescription = "Liked Songs",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
+                        } else {
+                            GlideImage(
+                                modifier = Modifier.size(48.dp),
+                                contentScale = ContentScale.Crop,
+                                model = item.imageUrl,
+                                loading = placeholder(R.drawable.placeholder),
+                                failure = placeholder(R.drawable.placeholder),
+                                contentDescription = "",
+                            )
+                        }
                         Text(
-                            text = item.name,
+                            text = item?.name ?: "Liked Songs",
                             color = Color.White,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
