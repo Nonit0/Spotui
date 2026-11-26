@@ -36,4 +36,4 @@ cooldown de los 429, *Liked Songs* en Inicio, menú «Guardado en» al dar like)
 ## 7. Registro
 | Fecha | Estado | Resultado real | Commit |
 |---|---|---|---|
-| 2026-11-26 | 🚀 Tag subido | Versión subida; tests + `assembleRelease` en verde tras el merge de IT-61 | _(ver git log)_ |
+| 2026-11-26 | 🚀 Borrador listo | Workflow 45903412268 en verde (4 min 58 s); borrador `Spotui v1.6.1` con `Spotui_v1.6.1.apk` (73 MB), firma `CN=Nonit0` (SHA-256 a20dca38…faa6), versionCode 202611260 comprobados. Falta publicar como *Latest* | `f0c6971` |
