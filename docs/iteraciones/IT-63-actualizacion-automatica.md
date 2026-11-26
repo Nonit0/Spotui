@@ -48,3 +48,4 @@ navegador para descargar la APK.
 ## 7. Registro
 | Fecha | Estado | Resultado real | Commit |
 |---|---|---|---|
+| 2026-11-26 | ⏳ Hecha, compila | `:app:compileDebugKotlin` OK; falta probar en el móvil (necesita una versión publicada mayor que la instalada) | `7adf649` |
